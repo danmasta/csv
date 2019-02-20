@@ -45,7 +45,7 @@ name | type | description
 ### Methods
 Name | Description
 -----|------------
-`Parser(opts)` | Low lever Parser class for generating a custom csv parsing function
+`Parser(opts)` | Low lever Parser class for generating a custom csv parser instance
 `parse(str, opts)` | Syncronous parse function. Accepts a string and optional options object, returns an array of parsed rows
 `stream(opts)` | Returns a transform stream used to parse csv data from strings or buffers
 `promise(str, opts)` | Accepts a string to parse and optional options object. Returns a promise that resolves with an array of parsed rows
