@@ -35,7 +35,7 @@ const csv = require('@danmasta/csv');
 ### Options
 name | type | description
 -----|----- | -----------
-`headers` | *`boolean\|object`* | If truthy, reads the first line as header fields. If false, disables header fields and replaces with interger values of 0-n. If object, the original header name field is replaced with it's value in the mapping. Default is `true`
+`headers` | *`boolean\|object`* | If truthy, reads the first line as header fields. If false, disables header fields and replaces with integer values of 0-n. If object, the original header name field is replaced with it's value in the mapping. Default is `true`
 `values` | *`boolean\|object`* | Same as the header field, but for values. If you want to replace values on the fly, provide an object: `{'null': null, 'True', true}`. Default is `null`
 `newline` | *`string`* | Which character to use for newlines. Default is `\n`
 `delimeter` | *`string`* | Which characer to use for delimeters. Default is `,`
