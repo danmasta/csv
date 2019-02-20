@@ -11,7 +11,7 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha tests",
-    "coverage": "nyc npm test",
+    "coverage": "nyc npm tests",
     "build": "gulp build",
     "bench": "gulp bench"
   },
