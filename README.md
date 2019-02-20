@@ -54,7 +54,7 @@ Name | Description
 Testing is currently run using mocha and chai. To execute tests just run `npm run test`. To generate unit test coverage reports just run `npm run coverage`
 
 ## Benchmarks
-Benchmakrs are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
+Benchmarks are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
 
 ## Contact
 If you have any questions feel free to get in touch
