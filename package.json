@@ -9,6 +9,9 @@
     "etl"
   ],
   "main": "index.js",
+  "files": [
+    "index.js"
+  ],
   "scripts": {
     "test": "mocha tests",
     "coverage": "nyc npm tests",
