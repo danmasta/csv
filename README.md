@@ -33,8 +33,8 @@ const csv = require('@danmasta/csv');
 ### Options
 name | type | description
 -----|----- | -----------
-`headers` | *`boolean\|object`* | If truthy, reads the first line as header fields. If false, disables header fields and replaces with integer values of 0-n. If object, the original header name field is replaced with it's value in the mapping. Default is `true`
-`values` | *`boolean\|object`* | Same as the header field, but for values. If you want to replace values on the fly, provide an object: `{'null': null, 'True', true}`. Default is `null`
+`headers` | *`boolean\|object\|array\|function`* | If truthy, reads the first line as header fields. If false, disables header fields and replaces with integer values of 0-n. If object, the original header name field is replaced with it's value in the mapping. If function, the header field is set to the functions return value. Default is `true`
+`values` | *`boolean\|object\|function`* | Same as the header field, but for values. If you want to replace values on the fly, provide an object: `{'null': null, 'True', true}`. If function, the value is replaced with the functions return value. Default is `null`
 `newline` | *`string`* | Which character to use for newlines. Default is `\n`
 `delimeter` | *`string`* | Which characer to use for delimeters. Default is `,`
 `quote` | *`string`* | Which characer to use for quotes. Default is `"`
@@ -43,16 +43,65 @@ name | type | description
 ### Methods
 Name | Description
 -----|------------
-`Parser(opts)` | Low lever Parser class for generating a custom csv parser instance
-`parse(str, opts)` | Syncronous parse function. Accepts a string and optional options object, returns an array of parsed rows
+`Parser(opts)` | Low level Parser class for generating a custom csv parser instance
+`parse(str, opts)` | Synchronous parse function. Accepts a string and optional options object, returns an array of parsed rows
 `stream(opts)` | Returns a transform stream used to parse csv data from strings or buffers
 `promise(str, opts)` | Accepts a string to parse and optional options object. Returns a promise that resolves with an array of parsed rows
+
+## Examples
+Use crlf line endings
+```
+csv.parse(str, { newline: '\r\n' });
+```
+Update header values
+```
+let headers = {
+    time: 'timestamp',
+    latitude: 'lat',
+    longitude: 'lng'
+};
+
+csv.parse(str, { headers });
+```
+Update headers and values with functions
+```
+function headers (str) {
+    return str.toLowerCase();
+}
+
+function values (val) {
+    if (val === 'false') return false;
+    if (val === 'true') return true;
+    if (!val) return null;
+    if (typeof val === 'str') return val.toLowerCase();
+    return val;
+}
+
+csv.parse(str, { headers, values });
+```
+Create a custom parser that pushes to a queue
+```
+const Queue = require('queue');
+const q = new Queue();
+
+const parser = new csv.Parser({ cb: q.push.bind(q) });
+
+parser.parse(str);
+parser.flush();
+```
 
 ## Testing
 Testing is currently run using mocha and chai. To execute tests just run `npm run test`. To generate unit test coverage reports just run `npm run coverage`
 
 ## Benchmarks
 Benchmarks are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
+```
+Filename                                Rows   Bytes       Time      Rows/Sec    Bytes/Sec
+--------------------------------------  -----  ----------  --------  ----------  -------------
+2010_Census_Populations_by_Zip_Code_LA  3199   120,912     12.8649   248,661.09  9,398,596.18
+Demographic_Statistics_By_Zip_Code_NY   2369   263,168     40.7728   58,102.46   6,454,499.08
+Earthquakes                             72689  11,392,064  268.2191  271,006.05  42,472,978.25
+```
 
 ## Contact
 If you have any questions feel free to get in touch
