@@ -49,12 +49,12 @@ Name | Description
 `promise(str, opts)` | Accepts a string to parse and optional options object. Returns a promise that resolves with an array of parsed rows
 
 ## Examples
-Use crlf line endings
-```
+Use CRLF line endings
+```javascript
 csv.parse(str, { newline: '\r\n' });
 ```
 Update header values
-```
+```javascript
 let headers = {
     time: 'timestamp',
     latitude: 'lat',
@@ -64,7 +64,7 @@ let headers = {
 csv.parse(str, { headers });
 ```
 Update headers and values with functions
-```
+```javascript
 function headers (str) {
     return str.toLowerCase();
 }
@@ -72,15 +72,14 @@ function headers (str) {
 function values (val) {
     if (val === 'false') return false;
     if (val === 'true') return true;
-    if (!val) return null;
-    if (typeof val === 'str') return val.toLowerCase();
-    return val;
+    if (val === 'null' || val === 'undefined') return null;
+    return val.toLowerCase();
 }
 
 csv.parse(str, { headers, values });
 ```
 Create a custom parser that pushes to a queue
-```
+```javascript
 const Queue = require('queue');
 const q = new Queue();
 
