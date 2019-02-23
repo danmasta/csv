@@ -104,7 +104,7 @@ gulp.task('test-parse', () => {
 
 gulp.task('bench', () => {
 
-    return pw.contents('./test/data', { src: '**/*.csv' }).map(file => {
+    return pw.contents('./tests/data', { src: '**/*.csv' }).map(file => {
 
         return new Promise((resolve, reject) => {
 
