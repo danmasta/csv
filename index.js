@@ -32,44 +32,51 @@ class CsvParser {
         this.quote = opts.quote;
         this.newline = opts.newline;
 
-        this.keys = {
-            headers: CsvParser.getBooleanMap(opts.headers),
-            values: CsvParser.getBooleanMap(opts.values)
-        };
+    }
+
+    _flushValue () {
+
+        if (this.opts.values) {
+
+            if (typeof this.opts.values === 'function') {
+                this.row[this.headers[this.pos]] = this.opts.values(this.slice);
+            } else {
+                this.row[this.headers[this.pos]] = this.opts.values.hasOwnProperty(this.slice) ? this.opts.values[this.slice] : this.slice;
+            }
+
+        } else {
+            this.row[this.headers[this.pos]] = this.slice;
+        }
 
     }
 
-    static getBooleanMap (obj) {
+    _flushHeader () {
 
-        let res = {};
+        if (!this.opts.headers) {
+            this.headers.push(this.pos);
+            this._flushValue();
 
-        _.map(obj, (val, key) => {
-            res[key] = true;
-        });
+        } else if (typeof this.opts.headers === 'boolean') {
+            this.headers.push(this.slice);
 
-        return res;
+        } else if (Array.isArray(this.opts.headers)) {
+            this.headers.push(this.opts.headers.hasOwnProperty(this.pos) ? this.opts.headers[this.pos] : this.pos);
+
+        } else if (typeof this.opts.headers === 'object') {
+            this.headers.push(this.opts.headers.hasOwnProperty(this.slice) ? this.opts.headers[this.slice] : this.slice);
+
+        } else if (typeof this.opts.headers === 'function') {
+            this.headers.push(this.opts.headers(this.slice));
+        }
 
     }
 
     _flushCol (index, char) {
 
         if (this.rows) {
-
-            this.row[this.headers[this.pos]] = this.opts.values && this.keys.values[this.slice] ? this.opts.values[this.slice] : this.slice;
-
+            this._flushValue();
         } else {
-
-            if (!this.opts.headers) {
-                this.row[this.pos] = this.opts.values && this.keys.values[this.slice] ? this.opts.values[this.slice] : this.slice;
-                this.headers.push(this.pos);
-            } else if (_.isBoolean(this.opts.headers)) {
-                this.headers.push(this.slice);
-            } else if (_.isArray(this.opts.headers)) {
-                this.headers.push(this.keys.headers[this.pos] ? this.opts.headers[this.pos] : this.pos);
-            } else if (_.isPlainObject(this.opts.headers)) {
-                this.headers.push(this.opts.headers && this.keys.headers[this.slice] ? this.opts.headers[this.slice] : this.slice);
-            }
-
+            this._flushHeader();
         }
 
         this.pos++;
