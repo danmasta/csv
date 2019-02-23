@@ -3,7 +3,7 @@ CSV Parser for Node Apps
 
 Features:
 * Easy to use
-* Simple, Lightweight, Fast
+* Simple, Lightweight, [Fast](#benchmarks)
 * Parse csv data to js objects
 * Header field mapping
 * Value field mapping
