@@ -19,19 +19,19 @@ class StrStream extends Readable {
 
 }
 
-let csvPath = './test/data/Earthquakes.csv';
+let csvPath = './tests/data/Earthquakes.csv';
 
-function getCSVReadStream() {
+function getCSVReadStream () {
     return fs.createReadStream(path.resolve(csvPath));
 }
 
-function getCSVContents() {
+function getCSVContents () {
     return pw.contents(csvPath).then(res => {
         return res[0].contents;
     });
 }
 
-function multiplyLines(str, factor) {
+function multiplyLines (str, factor) {
     let res = str.split('\n').slice(0, 1);
     for (let i = 0; i < factor; i++) {
         res = res.concat(str.split('\n').slice(1));
@@ -39,7 +39,7 @@ function multiplyLines(str, factor) {
     return res.join('\n');
 }
 
-function getCSVData() {
+function getCSVData () {
 
     return getCSVContents().then(str => {
         str = multiplyLines(str, 10);
@@ -106,20 +106,18 @@ gulp.task('bench', () => {
 
     return pw.contents('./tests/data', { src: '**/*.csv' }).map(file => {
 
-        return new Promise((resolve, reject) => {
 
-            let contents = multiplyLines(file.contents, 10);
-            let start = process.hrtime();
-            let res = CSV.parse(contents);
+        let contents = multiplyLines(file.contents, 10);
+        let start = process.hrtime();
+        let res = CSV.parse(contents);
 
-            resolve({
-                file: file,
-                rows: res,
-                ms: ms(start),
-                bytes: Buffer.byteLength(contents)
-            });
-
+        return({
+            file: file,
+            rows: res,
+            ms: ms(start),
+            bytes: Buffer.byteLength(contents)
         });
+
 
     }).then(res => {
 
