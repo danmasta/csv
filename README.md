@@ -7,7 +7,7 @@ Features:
 * Parse csv data to js objects
 * Header field mapping
 * Value field mapping
-* Supports [csv rfc spec 4180](https://tools.ietf.org/html/rfc4180)
+* Supports csv spec [rfc 4180](https://tools.ietf.org/html/rfc4180)
 * Memory safe, only keeps maximum of 1 row in memory during streaming
 * Supports streaming, whole string parsing, and promises
 * Supports multi-byte newlines `(\n, \r\n)`
