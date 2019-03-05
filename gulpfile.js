@@ -70,6 +70,24 @@ function stats(ms, rows, bytes) {
     console.log('Finished:', number(ms), 'ms', '|', number(rows), 'rows', '|', number(bytes), 'bytes', '|', number(bps(ms, bytes)), 'bytes per second', '|', number(rps(ms, rows)), 'rows per second');
 }
 
+function average(str, count) {
+
+    let time = [];
+    let rows = [];
+
+    count = count || 10;
+
+    for (let i = 0; i < count; i++) {
+        let start = process.hrtime();
+        let res = CSV.parse(str);
+        time.push(ms(start));
+        rows.push(res.length);
+    }
+
+    return { ms: _.mean(time), rows: _.mean(rows) };
+
+}
+
 gulp.task('test-stream', () => {
 
     return getCSVData().then(data => {
@@ -104,17 +122,16 @@ gulp.task('test-parse', () => {
 
 gulp.task('bench', () => {
 
-    return pw.contents('./tests/data', { src: '**/*.csv' }).map(file => {
+    return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
 
 
         let contents = multiplyLines(file.contents, 10);
-        let start = process.hrtime();
-        let res = CSV.parse(contents);
+        let res = average(contents, 10);
 
         return({
             file: file,
-            rows: res,
-            ms: ms(start),
+            rows: res.rows,
+            ms: res.ms,
             bytes: Buffer.byteLength(contents)
         });
 
@@ -125,10 +142,10 @@ gulp.task('bench', () => {
 
         _.map(res, test => {
             t.cell('Filename', test.file.name);
-            t.cell('Rows', test.rows.length);
+            t.cell('Rows', number(test.rows));
             t.cell('Bytes', number(test.bytes));
-            t.cell('Time', test.ms);
-            t.cell('Rows/Sec', number(rps(test.ms, test.rows.length)));
+            t.cell('Time (ms)', number(test.ms));
+            t.cell('Rows/Sec', number(rps(test.ms, test.rows)));
             t.cell('Bytes/Sec', number(bps(test.ms, test.bytes)));
             t.newRow();
         });
