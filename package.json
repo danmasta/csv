@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "test": "mocha tests",
-    "coverage": "nyc npm tests",
+    "coverage": "nyc mocha tests",
     "build": "gulp build",
     "bench": "gulp bench"
   },
