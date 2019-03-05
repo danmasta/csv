@@ -124,7 +124,6 @@ gulp.task('bench', () => {
 
     return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
 
-
         let contents = multiplyLines(file.contents, 10);
         let res = average(contents, 10);
 
@@ -134,7 +133,6 @@ gulp.task('bench', () => {
             ms: res.ms,
             bytes: Buffer.byteLength(contents)
         });
-
 
     }).then(res => {
 
