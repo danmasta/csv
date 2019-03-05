@@ -32,6 +32,9 @@ class CsvParser {
         this.quote = opts.quote;
         this.newline = opts.newline;
 
+        this._next = -1;
+        this._char = null;
+
     }
 
     _flushValue () {
@@ -119,7 +122,10 @@ class CsvParser {
 
     _handleDelimeter (index, char) {
 
-        if (this.quoted) return;
+        if (this.quoted) {
+            this.offset++;
+            return;
+        }
 
         this.slice += this.str.slice(this.offset, index);
         this.offset = index + char.length;
@@ -130,32 +136,57 @@ class CsvParser {
 
     _handleNewline (index, char) {
 
-        if (this.quoted) return;
+        if (this.quoted) {
+            this.offset++;
+            return;
+        }
 
         this._handleDelimeter(index, char);
         this._flushRow(index, char);
 
     }
 
-    // parses a string or buffer
-    //
-    // in my testing, using regex.exec with a switch case was the fastest method
-    // much faster than using a for loop over each character
+    _match () {
+
+        let i,j,k;
+
+        this._next = -1;
+
+        i = this.str.indexOf(this.delimeter, this.offset);
+        j = this.str.indexOf(this.quote, this.offset);
+        k = this.str.indexOf(this.newline, this.offset);
+
+        if (i > -1) {
+            this._next = i, this._char = this.delimeter;
+        }
+
+        if (j > -1 && (this._next < 0 || j < this._next)) {
+            this._next = j, this._char = this.quote;
+        }
+
+        if (k > -1 && (this._next < 0 || k < this._next)) {
+            this._next = k, this._char = this.newline;
+        }
+
+        return this._next;
+
+    }
+
     parse (str) {
 
         this.str += str;
 
-        while (this.match = this.regex.exec(this.str)) {
+        while (this._match() > -1) {
 
-            switch (this.match[0]) {
+            switch (this._char) {
                 case this.delimeter:
-                    this._handleDelimeter(this.match.index, this.match[0]);
+                    this._handleDelimeter(this._next, this._char);
                     break;
                 case this.quote:
-                    this._handleQuote(this.match.index, this.match[0]);
+                    this._handleQuote(this._next, this._char);
                     break;
                 case this.newline:
-                    this._handleNewline(this.match.index, this.match[0]);
+                    this._handleNewline(this._next, this._char);
                     break;
             }
 
