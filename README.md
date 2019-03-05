@@ -16,9 +16,9 @@ Features:
 * Only 1 dependency: [lodash](https://github.com/lodash/lodash)
 
 ## About
-After testing literally every CSV library on npm ([csv](https://www.npmjs.com/package/csv), [csv-parse](https://www.npmjs.com/package/csv-parse), [fast-csv](https://www.npmjs.com/package/fast-csv), [papaparse](https://www.npmjs.com/package/papaparse), [csvdata](https://www.npmjs.com/package/csvdata), [csv-parser](https://github.com/mafintosh/csv-parser), and [more](https://www.npmjs.com/search?q=csv)) in our BI system at work, we could only max out at about ~1k rows/ 1mb per second, and often far less depending on the library. We built a parser internally that helped us get a 12x boost to 12mb a second, combined with some other tricks we were able to bring our job processing down from several hours to ~10 minutes. This library is a result of those learnings, as well as testing as many different algorithms as I could find and/ or think of. After many many tests, this implementation was the fastest native javascript version I could find.
+I was working on our BI system at work, and as our user base kept growing our jobs got slower and slower. A huge bottleneck for us was csv parsing. We tried many of the popular csv libraries on npm ([csv](https://www.npmjs.com/package/csv), [csv-parse](https://www.npmjs.com/package/csv-parse), [fast-csv](https://www.npmjs.com/package/fast-csv), [papaparse](https://www.npmjs.com/package/papaparse), [csvdata](https://www.npmjs.com/package/csvdata), [csv-parser](https://github.com/mafintosh/csv-parser), and [more](https://www.npmjs.com/search?q=csv)), but were unable to get a decent level of performance consistently from our many jobs. We are parsing tens of millions of rows per day, with the average row being around 1.5kb, with 80+ columns (it's not uncommon for one job to parse up to 10gb of data). Some columns have complex json strings, some are empty, some are in languages like Chinese, and some use `/r/n` for new lines. We needed something fast, chunk boundary safe, and character encoding safe. Something that worked well on all of our various csv formats. Some of the other parsers failed to accurately parse `/r/n` newlines across chunk boundaries, some failed altogether, some caused out of memory errors, some were just crazy slow, and some had encoding errors with multi-byte characters.
 
-According to the self proclaimed fastest [csv-parser](https://github.com/mafintosh/csv-parser), this library is currently faster by a factor of 2.5x (on my i7 3770k from 2012), using the same [test data](https://github.com/mafintosh/csv-parser/blob/master/test/data/process_all_rows.csv), achieving around 35-40Mb per second processing, depending on data and cpu.
+We ended up creating a parser internally that helped us achieve better performance and stability for our jobs, drastically cutting down our job processing time. This library is a result of those learnings. It's fast, stable, works on any data, and is highly configurable. Based on the benchmarks from [csv-parser](https://github.com/mafintosh/csv-parser), this library currently provides increased throughput by a factor of ~3x (on my i7 3770k from 2012), using the same [test data](https://github.com/mafintosh/csv-parser/blob/master/test/data/process_all_rows.csv), achieving around 40-45Mb per second processing, depending on data and cpu.
 
 ## Usage
 Add csv as a dependency for your app and install via npm
@@ -95,11 +95,9 @@ Testing is currently run using mocha and chai. To execute tests just run `npm ru
 ## Benchmarks
 Benchmarks are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
 ```
-Filename                                Rows   Bytes       Time      Rows/Sec    Bytes/Sec
---------------------------------------  -----  ----------  --------  ----------  -------------
-2010_Census_Populations_by_Zip_Code_LA  3199   120,912     12.8649   248,661.09  9,398,596.18
-Demographic_Statistics_By_Zip_Code_NY   2369   263,168     40.7728   58,102.46   6,454,499.08
-Earthquakes                             72689  11,392,064  268.2191  271,006.05  42,472,978.25
+Filename     Rows    Bytes       Time (ms)  Rows/Sec    Bytes/Sec
+-----------  ------  ----------  ---------  ----------  -------------
+Earthquakes  72,689  11,392,064  251.01     289,582.99  45,384,418.26
 ```
 
 ## Contact
