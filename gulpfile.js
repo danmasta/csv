@@ -6,91 +6,11 @@ const gulp = require('gulp');
 const Table = require('easy-table');
 const _ = require('lodash');
 const CSV = require('./index');
-
-class StrStream extends Readable {
-
-    constructor(str) {
-        super();
-        this.push(str);
-        this.push(null);
-    }
-
-    _read() {}
-
-}
-
-let csvPath = './tests/data/Earthquakes.csv';
-
-function getCSVReadStream () {
-    return fs.createReadStream(path.resolve(csvPath));
-}
-
-function getCSVContents () {
-    return pw.contents(csvPath).then(res => {
-        return res[0].contents;
-    });
-}
-
-function multiplyLines (str, factor) {
-    let res = str.split('\n').slice(0, 1);
-    for (let i = 0; i < factor; i++) {
-        res = res.concat(str.split('\n').slice(1));
-    }
-    return res.join('\n');
-}
-
-function getCSVData () {
-
-    return getCSVContents().then(str => {
-        str = multiplyLines(str, 10);
-        let stream = new StrStream(str);
-        return { stream, str };
-    });
-
-}
-
-function number (int) {
-    return int.toLocaleString(false, { maximumFractionDigits: 2 });
-}
-
-function ms (start) {
-    let diff = process.hrtime(start);
-    return (diff[0] * 1000) + (diff[1] / 1000000);
-}
-
-function bps (ms, bytes) {
-    return (1000/ms) * bytes;
-}
-
-function rps (ms, rows) {
-    return (1000/ms) * rows;
-}
-
-function stats(ms, rows, bytes) {
-    console.log('Finished:', number(ms), 'ms', '|', number(rows), 'rows', '|', number(bytes), 'bytes', '|', number(bps(ms, bytes)), 'bytes per second', '|', number(rps(ms, rows)), 'rows per second');
-}
-
-function average(str, count) {
-
-    let time = [];
-    let rows = [];
-
-    count = count || 10;
-
-    for (let i = 0; i < count; i++) {
-        let start = process.hrtime();
-        let res = CSV.parse(str);
-        time.push(ms(start));
-        rows.push(res.length);
-    }
-
-    return { ms: _.mean(time), rows: _.mean(rows) };
-
-}
+const util = require('./lib/util');
 
 gulp.task('test-stream', () => {
 
-    return getCSVData().then(data => {
+    return util.getCSVData().then(data => {
 
         let count = 0;
         let start = process.hrtime();
@@ -100,7 +20,7 @@ gulp.task('test-stream', () => {
                 count++;
             })
             .once('end', () => {
-                stats(ms(start), count, Buffer.byteLength(data.str));
+                util.stats(util.ms(start), count, Buffer.byteLength(data.str));
             });
 
     });
@@ -109,12 +29,12 @@ gulp.task('test-stream', () => {
 
 gulp.task('test-parse', () => {
 
-    return getCSVData().then(data => {
+    return util.getCSVData().then(data => {
 
         let start = process.hrtime();
         let res = CSV.parse(data.str);
 
-        stats(ms(start), res.length, Buffer.byteLength(data.str));
+        util.stats(util.ms(start), res.length, Buffer.byteLength(data.str));
 
     });
 
@@ -124,8 +44,8 @@ gulp.task('bench', () => {
 
     return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
 
-        let contents = multiplyLines(file.contents, 10);
-        let res = average(contents, 10);
+        let contents = util.multiplyLines(file.contents, 10);
+        let res = util.average(contents, 10);
 
         return({
             file: file,
@@ -140,11 +60,11 @@ gulp.task('bench', () => {
 
         _.map(res, test => {
             t.cell('Filename', test.file.name);
-            t.cell('Rows', number(test.rows));
-            t.cell('Bytes', number(test.bytes));
-            t.cell('Time (ms)', number(test.ms));
-            t.cell('Rows/Sec', number(rps(test.ms, test.rows)));
-            t.cell('Bytes/Sec', number(bps(test.ms, test.bytes)));
+            t.cell('Rows', util.number(test.rows));
+            t.cell('Bytes', util.number(test.bytes));
+            t.cell('Time (ms)', util.number(test.ms));
+            t.cell('Rows/Sec', util.number(util.rps(test.ms, test.rows)));
+            t.cell('Bytes/Sec', util.number(util.bps(test.ms, test.bytes)));
             t.newRow();
         });
 
@@ -153,3 +73,29 @@ gulp.task('bench', () => {
     });
 
 });
+
+gulp.task('test-data', () => {
+
+    let data = Buffer.from('col0,col1,col2\né,£,€');
+    // let data = 'col0,col1,col2\né,£,€';
+    let stream = util.readstream(util.toCharArray(data));
+    let res = [];
+    // res = CSV.parse(data);
+
+    // { col0: 'é', col1: '£', col2: '€'}
+
+    return stream.pipe(CSV.stream())
+        .on('data', chunk => {
+            console.log('CHUNK', chunk)
+            res.push(chunk);
+        })
+        .once('end', () => {
+            console.log('DONE', res);
+        });
+
+});
+
+gulp.task('test-comma', () => {
+    let res = CSV.parse(`first,last,address,city,zip\nJohn,Doe,120 any st.,"Anytown, WW",08123`);
+    console.log('RES', res)
+})
