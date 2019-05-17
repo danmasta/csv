@@ -7,7 +7,8 @@ const defaults = {
     newline: '\n',
     delimeter: ',',
     quote: '"',
-    cb: _.noop
+    cb: _.noop,
+    buffer: false
 };
 
 // https://tools.ietf.org/html/rfc4180
@@ -32,9 +33,10 @@ class CsvParser {
         this.quote = opts.quote;
         this.newline = opts.newline;
 
-        this._prev = -1;
-        this._next = -1;
-        this._char = null;
+        this._prevIndex = -1;
+        this._prevChar = '';
+        this._nextIndex = -1;
+        this._nextChar = '';
 
     }
 
@@ -106,35 +108,24 @@ class CsvParser {
 
     _handleQuote (index, char) {
 
-        console.log('Handle Quote', this.quoted, this.offset)
-
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
             this.slice += this.str.slice(this.offset, index);
             this.offset = index;
         } else {
-            if (this.str[index - 1] === char) {
+            if (char === this._prevChar && index-char.length === this._prevIndex) {
                 this.slice += char;
             }
         }
 
-        // this.offset += char.length;
-        this.offset = index + char.length;
+        this.offset += char.length;
 
     }
 
     _handleDelimeter (index, char) {
 
-        // console.log('Handle Delimeter', index, `char: ${char.toString()}`, this.quoted, this.str.slice(0, index))
-        console.log('Handle Delimeter', this.quoted, this.offset)
-
-        if (this.quoted) {
-            // this.offset++;
-            this.offset = this.offset + char.length;
-            // this.offset = index + char.length;
-            return;
-        }
+        if (this.quoted) return;
 
         this.slice += this.str.slice(this.offset, index);
         this.offset = index + char.length;
@@ -145,12 +136,7 @@ class CsvParser {
 
     _handleNewline (index, char) {
 
-        if (this.quoted) {
-            // this.offset++;
-            // this.offset = index + char.length;
-            this.offset = this.offset + char.length;
-            return;
-        }
+        if (this.quoted) return;
 
         this._handleDelimeter(index, char);
         this._flushRow(index, char);
@@ -159,27 +145,26 @@ class CsvParser {
 
     _match () {
 
-        let i,j,k;
+        this._prevIndex = this._nextIndex;
+        this._prevChar = this._nextChar;
 
-        this._next = -1;
+        let offset = this._prevIndex + this._prevChar.length;
 
-        i = this.str.indexOf(this.delimeter, this.offset);
-        j = this.str.indexOf(this.quote, this.offset);
-        k = this.str.indexOf(this.newline, this.offset);
+        let i = this.str.indexOf(this.delimeter, offset);
+        let j = this.str.indexOf(this.quote, offset);
+        let k = this.str.indexOf(this.newline, offset);
 
-        if (i > -1) {
-            this._next = i, this._char = this.delimeter;
+        let next = Math.min(i > -1 ? i : Infinity, j > -1 ? j : Infinity, k > -1 ? k : Infinity);
+
+        if (next !== Infinity) {
+            this._nextIndex = next;
+            this._nextChar = next === i ? this.delimeter : next === j ? this.quote : this.newline;
+        } else {
+            this._nextIndex = -1;
+            this._nextChar = '';
         }
 
-        if (j > -1 && (this._next < 0 || j < this._next)) {
-            this._next = j, this._char = this.quote;
-        }
-
-        if (k > -1 && (this._next < 0 || k < this._next)) {
-            this._next = k, this._char = this.newline;
-        }
-
-        return this._next;
+        return this._nextIndex;
 
     }
 
@@ -189,23 +174,21 @@ class CsvParser {
 
         while (this._match() > -1) {
 
-            console.log('MATCH', this._next, this._char, this.str.slice(this._next))
-
-            switch (this._char) {
+            switch (this._nextChar) {
                 case this.delimeter:
-                    this._handleDelimeter(this._next, this._char);
+                    this._handleDelimeter(this._nextIndex, this._nextChar);
                     break;
                 case this.quote:
-                    this._handleQuote(this._next, this._char);
+                    this._handleQuote(this._nextIndex, this._nextChar);
                     break;
                 case this.newline:
-                    this._handleNewline(this._next, this._char);
+                    this._handleNewline(this._nextIndex, this._nextChar);
                     break;
             }
 
         }
 
-        if (this.offset < this.str.length-1) {
+        if (this.offset < this.str.length - 1) {
             this.str = this.str.slice(this.offset);
             this.offset = 0;
         }
