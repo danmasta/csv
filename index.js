@@ -230,9 +230,13 @@ class CsvParser {
 
     flush () {
 
-        this.slice += this.str;
+        if (this.opts.buffer) {
+            this.slice += this.str.toString(this.opts.encoding, this.offset);
+        } else {
+            this.slice += this.str.slice(this.offset);
+        }
 
-        if (this.slice.length && this.offset < this.slice.length) {
+        if (this.slice.length) {
             this._flushCol();
             this._flushRow();
         }
