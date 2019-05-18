@@ -40,7 +40,7 @@ name | type | description
 `quote` | *`string`* | Which characer to use for quotes. Default is `"`
 `cb` | *`function`* | Function to call when ready to flush a complete row. Used only for the `Parser` class. If you implement a custom parser you will need to include a cb function. Default is `_.noop`
 `buffer` | *`boolean`* | If `true`, parses data in buffer mode. Streams and strings are parsed directly as buffers instead of converting to a string. There are performance implications because `.slice` and `.concat` are ~200x slower for buffers than for strings. Default is `false`
-`encoding` | *`string`* | What encoding to use when parsing rows in buffer mode. This doesn't matter if using strings or streams not in buffer mode. Default is `utf8`
+`encoding` | *`string`* | Which encoding to use when parsing rows in buffer mode. This doesn't matter if using strings or streams not in buffer mode. Default is `utf8`
 
 ### Methods
 Name | Description
