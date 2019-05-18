@@ -1,6 +1,3 @@
-const fs = require('fs');
-const Readable = require('stream').Readable;
-const path = require('path');
 const pw = require('@danmasta/walk');
 const gulp = require('gulp');
 const Table = require('easy-table');
@@ -74,28 +71,18 @@ gulp.task('bench', () => {
 
 });
 
-gulp.task('test-data', () => {
+gulp.task('test-multibyte-chars', () => {
 
-    let data = Buffer.from('col0,col1,col2\né,£,€');
-    // let data = 'col0,col1,col2\né,£,€';
-    let stream = util.readstream(util.toCharArray(data));
     let res = [];
-    // res = CSV.parse(data);
-
-    // { col0: 'é', col1: '£', col2: '€'}
+    let data = Buffer.from(`col0,col1,col2\né,£,€`);
+    let stream = util.readstream(util.toCharArray(data), { encoding: null });
 
     return stream.pipe(CSV.stream())
         .on('data', chunk => {
-            console.log('CHUNK', chunk)
             res.push(chunk);
         })
         .once('end', () => {
-            console.log('DONE', res);
+            console.log('RES', res);
         });
 
 });
-
-gulp.task('test-comma', () => {
-    let res = CSV.parse(`first,last,address,city,zip\nJohn,Doe,120 any st.,"Anytown, WW",08123`);
-    console.log('RES', res)
-})
