@@ -16,8 +16,9 @@ describe('csv-spectrum', () => {
                 let parsed = csv.parse(spec.csv, { newline });
                 let json = JSON.parse(spec.json.toString());
                 expect(parsed).to.deep.equal(json);
-                done();
             });
+
+            done();
 
         });
 
