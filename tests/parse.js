@@ -25,6 +25,23 @@ describe('parse', () => {
                 place: '54km S of Redoubt Volcano, Alaska',
                 type: 'earthquake'
             }));
+            expect(_.isEqual(res[1], {
+                time: '2015-12-22T18:38:34.000Z',
+                latitude: '62.9616',
+                longitude: '-148.7532',
+                depth: '65.4',
+                mag: '1.9',
+                magType: 'ml',
+                nst: '',
+                gap: '',
+                dmin: '',
+                rms: '0.51',
+                net: 'ak',
+                id: 'ak12293651',
+                updated: '2015-12-22T18:47:23.287Z',
+                place: '48km SSE of Cantwell, Alaska',
+                type: 'earthquake'
+            }));
             expect(_.isEqual(res[res.length-2], {
                 time: '2015-11-22T19:29:30.970Z',
                 latitude: '35.1063333',
