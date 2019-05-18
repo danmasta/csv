@@ -8,7 +8,8 @@ const defaults = {
     delimeter: ',',
     quote: '"',
     cb: _.noop,
-    buffer: false
+    buffer: false,
+    encoding: 'utf8'
 };
 
 // https://tools.ietf.org/html/rfc4180
@@ -19,7 +20,6 @@ class CsvParser {
         opts = _.defaults(opts, defaults);
 
         this.opts = opts;
-        this.regex = new RegExp(`${opts.delimeter}|${opts.quote}|${opts.newline}`, 'g');
         this.match;
         this.row = {};
         this.headers = [];
@@ -42,37 +42,47 @@ class CsvParser {
 
     _flushValue () {
 
+        let slice = this.slice;
+
         if (this.opts.values) {
 
             if (typeof this.opts.values === 'function') {
-                this.row[this.headers[this.pos]] = this.opts.values(this.slice);
+                this.row[this.headers[this.pos]] = this.opts.values(slice);
             } else {
-                this.row[this.headers[this.pos]] = this.opts.values.hasOwnProperty(this.slice) ? this.opts.values[this.slice] : this.slice;
+                this.row[this.headers[this.pos]] = this.opts.values.hasOwnProperty(slice) ? this.opts.values[slice] : slice;
             }
 
         } else {
-            this.row[this.headers[this.pos]] = this.slice;
+            this.row[this.headers[this.pos]] = slice;
         }
 
     }
 
     _flushHeader () {
 
+        let slice = this.slice;
+
         if (!this.opts.headers) {
+
             this.headers.push(this.pos);
             this._flushValue();
 
         } else if (typeof this.opts.headers === 'boolean') {
-            this.headers.push(this.slice);
+
+            this.headers.push(slice);
 
         } else if (Array.isArray(this.opts.headers)) {
+
             this.headers.push(this.opts.headers.hasOwnProperty(this.pos) ? this.opts.headers[this.pos] : this.pos);
 
         } else if (typeof this.opts.headers === 'object') {
-            this.headers.push(this.opts.headers.hasOwnProperty(this.slice) ? this.opts.headers[this.slice] : this.slice);
+
+            this.headers.push(this.opts.headers.hasOwnProperty(slice) ? this.opts.headers[slice] : slice);
 
         } else if (typeof this.opts.headers === 'function') {
-            this.headers.push(this.opts.headers(this.slice));
+
+            this.headers.push(this.opts.headers(slice));
+
         }
 
     }
@@ -111,10 +121,14 @@ class CsvParser {
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
-            this.slice += this.str.slice(this.offset, index);
+            if (this.opts.buffer) {
+                this.slice += this.str.toString(this.opts.encoding, this.offset, index);
+            } else {
+                this.slice += this.str.slice(this.offset, index);
+            }
             this.offset = index;
         } else {
-            if (char === this._prevChar && index-char.length === this._prevIndex) {
+            if (char === this._prevChar && index - char.length === this._prevIndex) {
                 this.slice += char;
             }
         }
@@ -127,7 +141,12 @@ class CsvParser {
 
         if (this.quoted) return;
 
-        this.slice += this.str.slice(this.offset, index);
+        if (this.opts.buffer) {
+            this.slice += this.str.toString(this.opts.encoding, this.offset, index);
+        } else {
+            this.slice += this.str.slice(this.offset, index);
+        }
+
         this.offset = index + char.length;
 
         this._flushCol(index, char);
@@ -150,6 +169,8 @@ class CsvParser {
 
         let offset = this._prevIndex + this._prevChar.length;
 
+        offset = offset > -1 ? offset : this.offset;
+
         let i = this.str.indexOf(this.delimeter, offset);
         let j = this.str.indexOf(this.quote, offset);
         let k = this.str.indexOf(this.newline, offset);
@@ -170,7 +191,19 @@ class CsvParser {
 
     parse (str) {
 
-        this.str += str;
+        // handle buffers and strings
+        if (this.opts.buffer) {
+            if (!Buffer.isBuffer(str)) {
+                str = Buffer.from(str);
+            }
+            if (this.str.length) {
+                this.str = Buffer.concat([this.str, str]);
+            } else {
+                this.str = str;
+            }
+        } else {
+            this.str += str;
+        }
 
         while (this._match() > -1) {
 
@@ -199,7 +232,7 @@ class CsvParser {
 
         this.slice += this.str;
 
-        if (this.slice.length) {
+        if (this.slice.length && this.offset < this.slice.length) {
             this._flushCol();
             this._flushRow();
         }
@@ -215,26 +248,52 @@ class CsvParseStream extends Transform {
         super({ objectMode: true });
 
         opts = _.assign(opts, { cb: this.push.bind(this) });
+
         this.parser = new CsvParser(opts);
+        this.init = false;
 
     }
 
     _transform (chunk, enc, cb) {
-        this.parser.parse(chunk);
+
+        // detect buffer or string mode on first chunk
+        // detect encoding on first chunk
+        if (!this.init) {
+            if (Buffer.isBuffer(chunk)) {
+                this.parser.opts.buffer = true;
+            } else {
+                this.parser.opts.buffer = false;
+            }
+            this.parser.opts.encoding = enc;
+            this.init = true;
+        }
+
+        try {
+            this.parser.parse(chunk);
+        } catch (err) {
+            cb(err);
+        }
+
         cb(null);
+
     }
 
     _flush (cb) {
-        this.parser.flush();
+        try {
+            this.parser.flush();
+        } catch (err) {
+            cb(err);
+        }
         cb(null);
     }
 
 }
 
+// buffers are coerced to strings by default
+// if you want to parse in buffer mode, set: { buffer: true }
 function parse (str, opts) {
 
     let res = [];
-
     let parser = new CsvParser(_.assign(opts, { cb: res.push.bind(res) }));
 
     parser.parse(str);
@@ -250,7 +309,11 @@ function stream (opts) {
 
 function promise (str, opts) {
     return new Promise((resolve, reject) => {
-        resolve(parse(str, opts));
+        try {
+            resolve(parse(str, opts));
+        } catch (err) {
+            reject(err);
+        }
     });
 }
 
