@@ -37,6 +37,19 @@ gulp.task('test-parse', () => {
 
 });
 
+gulp.task('test-buffer', () => {
+
+    return util.getCSVData().then(data => {
+
+        let start = process.hrtime();
+        let res = CSV.parse(data.buff);
+
+        util.stats(util.ms(start), res.length, Buffer.byteLength(data.str));
+
+    });
+
+});
+
 gulp.task('bench', () => {
 
     return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
