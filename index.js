@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const Transform = require('stream').Transform;
+const StringDecoder = require('string_decoder').StringDecoder;
 
 const defaults = {
     headers: true,
@@ -32,6 +33,7 @@ class CsvParser {
         this.delimeter = opts.delimeter;
         this.quote = opts.quote;
         this.newline = opts.newline;
+        this.decoder = new StringDecoder(opts.encoding);
 
         this._prevIndex = -1;
         this._prevChar = '';
@@ -121,11 +123,7 @@ class CsvParser {
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
-            if (this.opts.buffer) {
-                this.slice += this.str.toString(this.opts.encoding, this.offset, index);
-            } else {
-                this.slice += this.str.slice(this.offset, index);
-            }
+            this.slice += this.str.slice(this.offset, index);
             this.offset = index;
         } else {
             if (char === this._prevChar && index - char.length === this._prevIndex) {
@@ -141,12 +139,7 @@ class CsvParser {
 
         if (this.quoted) return;
 
-        if (this.opts.buffer) {
-            this.slice += this.str.toString(this.opts.encoding, this.offset, index);
-        } else {
-            this.slice += this.str.slice(this.offset, index);
-        }
-
+        this.slice += this.str.slice(this.offset, index);
         this.offset = index + char.length;
 
         this._flushCol(index, char);
@@ -193,14 +186,7 @@ class CsvParser {
 
         // handle buffers and strings
         if (this.opts.buffer) {
-            if (!Buffer.isBuffer(str)) {
-                str = Buffer.from(str);
-            }
-            if (this.str.length) {
-                this.str = Buffer.concat([this.str, str]);
-            } else {
-                this.str = str;
-            }
+            this.str += this.decoder.write(str);
         } else {
             this.str += str;
         }
@@ -230,11 +216,8 @@ class CsvParser {
 
     flush () {
 
-        if (this.opts.buffer) {
-            this.slice += this.str.toString(this.opts.encoding, this.offset);
-        } else {
-            this.slice += this.str.slice(this.offset);
-        }
+        this.str += this.decoder.end();
+        this.slice += this.str.slice(this.offset);
 
         if (this.slice.length) {
             this._flushCol();
@@ -268,6 +251,9 @@ class CsvParseStream extends Transform {
             } else {
                 this.parser.opts.buffer = false;
             }
+            if (enc !== this.parser.opts.encoding) {
+                this.parser.decoder = new StringDecoder(enc);
+            }
             this.parser.opts.encoding = enc;
             this.init = true;
         }
@@ -298,7 +284,7 @@ class CsvParseStream extends Transform {
 function parse (str, opts) {
 
     let res = [];
-    let parser = new CsvParser(_.assign(opts, { cb: res.push.bind(res) }));
+    let parser = new CsvParser(_.assign(opts, { cb: res.push.bind(res), buffer: Buffer.isBuffer(str) }));
 
     parser.parse(str);
     parser.flush();
