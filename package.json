@@ -1,6 +1,6 @@
 {
   "name": "@danmasta/csv",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "author": "Daniel Smith <dannmasta@gmail.com>",
   "description": "CSV Parser",
   "keywords": [
