@@ -55,21 +55,30 @@ gulp.task('bench', () => {
     return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
 
         let contents = util.multiplyLines(file.contents, 10);
-        let res = util.average(contents, 10);
+        let res1 = util.average(contents, 10, false);
+        let res2 = util.average(contents, 10, true);
 
-        return({
+        return[{
             file: file,
-            rows: res.rows,
-            ms: res.ms,
-            bytes: Buffer.byteLength(contents)
-        });
+            rows: res1.rows,
+            ms: res1.ms,
+            bytes: Buffer.byteLength(contents),
+            mode: 'string'
+        }, {
+            file: file,
+            rows: res2.rows,
+            ms: res2.ms,
+            bytes: Buffer.byteLength(contents),
+            mode: 'buffer'
+        }];
 
-    }).then(res => {
+    }).map(res => {
 
         let t = new Table();
 
         _.map(res, test => {
             t.cell('Filename', test.file.name);
+            t.cell('Mode', test.mode);
             t.cell('Rows', util.number(test.rows));
             t.cell('Bytes', util.number(test.bytes));
             t.cell('Time (ms)', util.number(test.ms));
