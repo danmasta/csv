@@ -57,19 +57,23 @@ gulp.task('bench', () => {
         let contents = util.multiplyLines(file.contents, 10);
         let res1 = util.average(contents, 10, false);
         let res2 = util.average(contents, 10, true);
+        let count = contents.match(/"|,|\r\n|\n/g).length;
+        let density = util.number(count/contents.length);
 
         return[{
             file: file,
             rows: res1.rows,
             ms: res1.ms,
             bytes: Buffer.byteLength(contents),
-            mode: 'string'
+            mode: 'string',
+            density
         }, {
             file: file,
             rows: res2.rows,
             ms: res2.ms,
             bytes: Buffer.byteLength(contents),
-            mode: 'buffer'
+            mode: 'buffer',
+            density
         }];
 
     }).map(res => {
@@ -79,6 +83,7 @@ gulp.task('bench', () => {
         _.map(res, test => {
             t.cell('Filename', test.file.name);
             t.cell('Mode', test.mode);
+            t.cell('Density', test.density);
             t.cell('Rows', util.number(test.rows));
             t.cell('Bytes', util.number(test.bytes));
             t.cell('Time (ms)', util.number(test.ms));
