@@ -40,6 +40,8 @@ class CsvParser {
         this._nextIndex = -1;
         this._nextChar = '';
 
+        this.regex = new RegExp(`${opts.delimeter}|${opts.quote}|${opts.newline}`, 'g');
+
     }
 
     _flushValue () {
@@ -184,6 +186,8 @@ class CsvParser {
 
     parse (str) {
 
+        let match;
+
         // handle buffers and strings
         if (this.opts.buffer) {
             this.str += this.decoder.write(str);
@@ -191,21 +195,47 @@ class CsvParser {
             this.str += str;
         }
 
-        while (this._match() > -1) {
+        while ((match = this.regex.exec(this.str)) !== null) {
 
-            switch (this._nextChar) {
+            this._prevChar = this._nextChar;
+            this._prevIndex = this._nextIndex;
+            this._nextChar = match[0];
+            this._nextIndex = match.index;
+
+            switch (match[0]) {
                 case this.delimeter:
-                    this._handleDelimeter(this._nextIndex, this._nextChar);
+                    this._handleDelimeter(match.index, match[0]);
                     break;
                 case this.quote:
-                    this._handleQuote(this._nextIndex, this._nextChar);
+                    this._handleQuote(match.index, match[0]);
                     break;
                 case this.newline:
-                    this._handleNewline(this._nextIndex, this._nextChar);
+                    this._handleNewline(match.index, match[0]);
                     break;
             }
 
         }
+
+        this._nextIndex = -1;
+        this._nextChar = '';
+
+        // while (this._match() > -1) {
+
+        //     switch (this._nextChar) {
+        //         case this.delimeter:
+        //             this._handleDelimeter(this._nextIndex, this._nextChar);
+        //             break;
+        //         case this.quote:
+        //             this._handleQuote(this._nextIndex, this._nextChar);
+        //             break;
+        //         case this.newline:
+        //             this._handleNewline(this._nextIndex, this._nextChar);
+        //             break;
+        //     }
+
+        // }
+
+
 
         if (this.offset < this.str.length - 1) {
             this.str = this.str.slice(this.offset);
