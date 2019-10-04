@@ -219,23 +219,6 @@ class CsvParser {
         this._nextIndex = -1;
         this._nextChar = '';
 
-        // while (this._match() > -1) {
-
-        //     switch (this._nextChar) {
-        //         case this.delimeter:
-        //             this._handleDelimeter(this._nextIndex, this._nextChar);
-        //             break;
-        //         case this.quote:
-        //             this._handleQuote(this._nextIndex, this._nextChar);
-        //             break;
-        //         case this.newline:
-        //             this._handleNewline(this._nextIndex, this._nextChar);
-        //             break;
-        //     }
-
-        // }
-
-
 
         if (this.offset < this.str.length - 1) {
             this.str = this.str.slice(this.offset);
