@@ -16,9 +16,9 @@ Features:
 * Only 1 dependency: [lodash](https://github.com/lodash/lodash)
 
 ## About
-I was working on a BI system at work, and as our user base kept growing, our jobs got slower and slower. A huge bottleneck for us was csv parsing. We tried many of the popular csv libraries on [npm](https://www.npmjs.com/search?q=csv), but were unable to get a decent level of performance consistently from our many jobs. We are parsing tens of millions of rows per day, with the average row being around 1.5kb, with 80+ columns (it's not uncommon for one job to parse up to 10gb of data). Some columns have complex json strings, some are empty, some are in languages like Chinese, and some use `\r\n` for new lines. We needed something fast, chunk boundary safe, and character encoding safe. Something that worked well on all of our various csv formats. Some of the other parsers failed to accurately parse `\r\n` newlines across chunk boundaries, some failed altogether, some caused out of memory errors, some were just crazy slow, and some had encoding errors with multi-byte characters.
+I was working on a BI system at work, and as our user base kept growing, our jobs got slower and slower. A huge bottleneck for us was csv parsing. We tried many of the popular csv libraries on [npm](https://www.npmjs.com/search?q=csv), but were unable to get a decent level of performance consistently from our many jobs. We are parsing hundreds of millions of rows per day, with the average row being around 1.5kb and 80+ columns (it's not uncommon for one job to parse up over 10gb of data). Some columns have complex json strings, some are empty, some are in languages like Chinese, and some use `\r\n` for new lines. We needed something fast, chunk boundary safe, and character encoding safe. Something that worked well on all of our various csv formats. Some of the other parsers failed to accurately parse `\r\n` newlines across chunk boundaries, some failed altogether, some caused out of memory errors, some were just crazy slow, and some had encoding errors with multi-byte characters.
 
-We ended up creating a parser internally that helped us achieve better performance and stability for our jobs, drastically cutting down our job processing time. This library is a result of those learnings. It's fast, stable, works on any data, and is highly configurable. Based on the benchmarks from [csv-parser](https://github.com/mafintosh/csv-parser), this library currently provides increased throughput by a factor of ~3x (on my i7 3770k from 2012), using the same [test data](https://github.com/mafintosh/csv-parser/blob/master/test/data/process_all_rows.csv), achieving around 40-45Mb per second processing, depending on data and cpu.
+We ended up creating a parser internally that helped us achieve better performance and stability for our jobs, drastically cutting down our job processing time. This library is a result of those learnings. It's fast, stable, works on any data, and is highly configurable. Based on the benchmarks from [csv-parser](https://github.com/mafintosh/csv-parser), this library currently provides increased throughput by a factor of ~3x-10x, achieving around ~80Mb per second processing (on a i7 9700k), depending on data and cpu.
 
 ## Usage
 Add csv as a dependency for your app and install via npm
@@ -39,16 +39,16 @@ name | type | description
 `delimeter` | *`string`* | Which characer to use for delimeters. Default is `,`
 `quote` | *`string`* | Which characer to use for quotes. Default is `"`
 `cb` | *`function`* | Function to call when ready to flush a complete row. Used only for the `Parser` class. If you implement a custom parser you will need to include a cb function. Default is `_.noop`
-`buffer` | *`boolean`* | If `true`, parses data in buffer mode. Streams and strings are parsed directly as buffers instead of converting to a string. There are performance implications because `.slice` and `.concat` are ~200x slower for buffers than for strings. Default is `false`
+`buffer` | *`boolean`* | If `true`, uses a string decoder to parse buffers. This is set automatically with convenience methods, but will need to be set on custom parser instances. Default is `false`
 `encoding` | *`string`* | Which encoding to use when parsing rows in buffer mode. This doesn't matter if using strings or streams not in buffer mode. Default is `utf8`
 
 ### Methods
 Name | Description
 -----|------------
 `Parser(opts)` | Low level Parser class for generating a custom csv parser instance
-`parse(str, opts)` | Synchronous parse function. Accepts a string and optional options object, returns an array of parsed rows
+`parse(str, opts)` | Synchronous parse function. Accepts a string or buffer and optional options object, returns an array of parsed rows
 `stream(opts)` | Returns a transform stream used to parse csv data from strings or buffers
-`promise(str, opts)` | Accepts a string to parse and optional options object. Returns a promise that resolves with an array of parsed rows
+`promise(str, opts)` | Accepts a string or buffer to parse and optional options object. Returns a promise that resolves with an array of parsed rows
 
 ## Examples
 Use CRLF line endings
@@ -97,9 +97,10 @@ Testing is currently run using mocha and chai. To execute tests just run `npm ru
 ## Benchmarks
 Benchmarks are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
 ```
-Filename     Rows    Bytes       Time (ms)  Rows/Sec    Bytes/Sec
------------  ------  ----------  ---------  ----------  -------------
-Earthquakes  72,689  11,392,064  251.01     289,582.99  45,384,418.26
+Filename     Mode    Density  Rows    Bytes       Time (ms)  Rows/Sec    Bytes/Sec
+-----------  ------  -------  ------  ----------  ---------  ----------  -------------
+Earthquakes  string  0.11     72,689  11,392,064  143.86     505,273.78  79,188,203.08
+Earthquakes  buffer  0.11     72,689  11,392,064  141.92     512,180.39  80,270,629.72
 ```
 
 ## Contact
