@@ -97,11 +97,16 @@ Testing is currently run using mocha and chai. To execute tests just run `npm ru
 ## Benchmarks
 Benchmarks are currently built using gulp. Just run `gulp bench` to test timings and bytes per second
 ```
-Filename     Mode    Density  Rows    Bytes       Time (ms)  Rows/Sec    Bytes/Sec
------------  ------  -------  ------  ----------  ---------  ----------  -------------
-Earthquakes  string  0.11     72,689  11,392,064  143.86     505,273.78  79,188,203.08
-Earthquakes  buffer  0.11     72,689  11,392,064  141.92     512,180.39  80,270,629.72
+Filename                                Mode    Density  Rows    Bytes       Time (ms)  Rows/Sec      Bytes/Sec
+--------------------------------------  ------  -------  ------  ----------  ---------  ------------  -------------
+2010_Census_Populations_by_Zip_Code_LA  string  0.18     3,199   120,912     3.83       835,682.29    31,586,126.03
+2010_Census_Populations_by_Zip_Code_LA  buffer  0.18     3,199   120,912     2.85       1,120,996.96  42,370,110.65
+Demographic_Statistics_By_Zip_Code_NY   string  0.41     2,369   263,168     16.94      139,814       15,531,688.43
+Demographic_Statistics_By_Zip_Code_NY   buffer  0.41     2,369   263,168     18.59      127,412.58    14,154,037.61
+Earthquakes                             string  0.11     72,689  11,392,064  137.4      529,047.93    82,914,166.26
+Earthquakes                             buffer  0.11     72,689  11,392,064  139.81     519,918.73    81,483,407.34
 ```
+*Speed and throughput are highly dependent on the density (token matches/byte length) of data. The [earthquakes](https://github.com/danmasta/csv/blob/master/tests/data/Earthquakes.csv) file test data represents a roughly average level of density for common csv datas. The [demographics by zip code](https://github.com/danmasta/csv/blob/master/tests/data/Demographic_Statistics_By_Zip_Code_NY.csv) file represents an example of very dense csv data*
 
 ## Contact
 If you have any questions feel free to get in touch
