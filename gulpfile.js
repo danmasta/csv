@@ -52,7 +52,7 @@ gulp.task('test-buffer', () => {
 
 gulp.task('bench', () => {
 
-    return pw.contents('./tests/data/Earthquakes.csv', { src: '**/*.csv' }).map(file => {
+    return pw.contents('./tests/data', { src: '**/*.csv' }).map(file => {
 
         let contents = util.multiplyLines(file.contents, 10);
         let res1 = util.average(contents, 10, false);
@@ -65,22 +65,22 @@ gulp.task('bench', () => {
             rows: res1.rows,
             ms: res1.ms,
             bytes: Buffer.byteLength(contents),
-            mode: 'string',
+            mode: 'String',
             density
         }, {
             file: file,
             rows: res2.rows,
             ms: res2.ms,
             bytes: Buffer.byteLength(contents),
-            mode: 'buffer',
+            mode: 'Buffer',
             density
         }];
 
-    }).map(res => {
+    }).then(res => {
 
         let t = new Table();
 
-        _.map(res, test => {
+        _.map(_.flatten(res), test => {
             t.cell('Filename', test.file.name);
             t.cell('Mode', test.mode);
             t.cell('Density', test.density);
