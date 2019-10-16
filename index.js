@@ -51,7 +51,7 @@ class CsvParser {
         if (this.opts.values) {
 
             if (typeof this.opts.values === 'function') {
-                this.row[this.headers[this.pos]] = this.opts.values(slice);
+                this.row[this.headers[this.pos]] = this.opts.values(slice, this.headers[this.pos]);
             } else {
                 this.row[this.headers[this.pos]] = this.opts.values.hasOwnProperty(slice) ? this.opts.values[slice] : slice;
             }
