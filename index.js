@@ -5,13 +5,103 @@ const StringDecoder = require('string_decoder').StringDecoder;
 const defaults = {
     headers: true,
     values: null,
-    newline: '\n',
+    // newline: '\n',
+    newline: 'lf',
     delimeter: ',',
     quote: '"',
     cb: _.noop,
     buffer: false,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    // https://en.wikipedia.org/wiki/Newline
+    lf: true,
+    crlf: false,
+    cr: false,
+    lfcr: false,
+    nl: false
 };
+
+const constants = {
+    NEWLINE: {
+        lf: '\n',
+        lfcr: '\n\r',
+        cr: '\r',
+        crlf: '\r\n'
+    }
+};
+
+function getNewlineMatch (type) {
+
+    switch (type) {
+
+        case 'lf':
+        case 'lfcr':
+            return constants.NEWLINE.lf;
+
+        case 'cr':
+        case 'crlf':
+            return constants.NEWLINE.cr;
+
+    }
+
+}
+
+function getNewlineHandler (type) {
+
+    // console.log('NEWLINE HANDLER CALLED', type);
+
+    switch (type) {
+
+        case 'lf': return function _handleNewlineLF (index, char, prev, next) {
+
+            if (this.quoted) return;
+
+            this._handleDelimeter(index, char);
+            this._flushRow(index, char);
+
+        };
+
+        case 'lfcr': return function _handleNewlineLFCR (index, char, prev, next) {
+
+            if (this.quoted) return;
+
+            if (next === constants.NEWLINE.cr) {
+                char = constants.NEWLINE.lfcr;
+            } else {
+                return;
+            }
+
+            this._handleDelimeter(index, char);
+            this._flushRow(index, char);
+
+        };
+
+        case 'cr': return function _handleNewlineCR (index, char, prev, next) {
+
+            if (this.quoted) return;
+
+            this._handleDelimeter(index, char);
+            this._flushRow(index, char);
+
+        };
+
+        case 'crlf': return function _handleNewlineCRLF (index, char, prev, next) {
+
+            if (this.quoted) return;
+
+            if (next === constants.NEWLINE.lf) {
+                char = constants.NEWLINE.crlf;
+            } else {
+                return;
+            }
+
+            this._handleDelimeter(index, char);
+            this._flushRow(index, char);
+
+        };
+
+    }
+
+}
 
 // https://tools.ietf.org/html/rfc4180
 class CsvParser {
@@ -40,7 +130,18 @@ class CsvParser {
         this._nextIndex = -1;
         this._nextChar = '';
 
-        this.regex = new RegExp(`${opts.delimeter}|${opts.quote}|${opts.newline}`, 'g');
+        // this.regex = new RegExp(`${opts.delimeter}|${opts.quote}|${opts.newline}`, 'g');
+        // this.regex = /,|"|\r?\n\r?|\025/g;
+        // this.regex = /,|"|\r\n|\n\r|\n|\r|\025/g;
+
+        if (!constants.NEWLINE[this.opts.newline]) {
+            throw new Error('CSV: Newline type not supported');
+        }
+
+        this.newline = getNewlineMatch(this.opts.newline);
+        this._handleNewline = getNewlineHandler(this.opts.newline);
+
+        // console.log('HANDLER', this._handleNewline, getNewlineHandler(this.opts.newline));
 
     }
 
@@ -120,7 +221,7 @@ class CsvParser {
 
     }
 
-    _handleQuote (index, char) {
+    _handleQuote (index, char, prev, next) {
 
         this.quoted = !this.quoted;
 
@@ -128,7 +229,7 @@ class CsvParser {
             this.slice += this.str.slice(this.offset, index);
             this.offset = index;
         } else {
-            if (char === this._prevChar && index - char.length === this._prevIndex) {
+            if (char === prev) {
                 this.slice += char;
             }
         }
@@ -137,7 +238,24 @@ class CsvParser {
 
     }
 
-    _handleDelimeter (index, char) {
+    // _handleQuote (index, char, prev, next) {
+
+    //     this.quoted = !this.quoted;
+
+    //     if (!this.quoted) {
+    //         this.slice += this.str.slice(this.offset, index);
+    //         this.offset = index;
+    //     } else {
+    //         if (char === this._prevChar && index - char.length === this._prevIndex) {
+    //             this.slice += char;
+    //         }
+    //     }
+
+    //     this.offset += char.length;
+
+    // }
+
+    _handleDelimeter (index, char, prev, next) {
 
         if (this.quoted) return;
 
@@ -148,14 +266,14 @@ class CsvParser {
 
     }
 
-    _handleNewline (index, char) {
+    // _handleNewline (index, char, prev, next) {
 
-        if (this.quoted) return;
+    //     if (this.quoted) return;
 
-        this._handleDelimeter(index, char);
-        this._flushRow(index, char);
+    //     this._handleDelimeter(index, char);
+    //     this._flushRow(index, char);
 
-    }
+    // }
 
     _match () {
 
@@ -184,9 +302,22 @@ class CsvParser {
 
     }
 
+    _handleMatch (i, char) {
+
+        let prev = this.str[i-1];
+        let next = this.str[i+1];
+
+        this._prevChar = this._nextChar;
+        this._prevIndex = this._nextIndex;
+        this._nextChar = char;
+        this._nextIndex = i;
+
+    }
+
     parse (str) {
 
         let match;
+        let char;
 
         // handle buffers and strings
         if (this.opts.buffer) {
@@ -195,26 +326,62 @@ class CsvParser {
             this.str += str;
         }
 
-        while ((match = this.regex.exec(this.str)) !== null) {
+        if (this.offset > 0) {
+            this.offset = this.offset - 1;
+        }
 
-            this._prevChar = this._nextChar;
-            this._prevIndex = this._nextIndex;
-            this._nextChar = match[0];
-            this._nextIndex = match.index;
+        for (let i = this.offset; i < this.str.length; i++) {
 
-            switch (match[0]) {
-                case this.delimeter:
-                    this._handleDelimeter(match.index, match[0]);
+            char = this.str[i];
+
+            // console.log(char, i, prev, next);
+            // do nothging
+            // if (i % 8 === 0) {
+            //     this._handleMatch(i, this.str[i]);
+            // }
+
+
+            switch (char) {
+                case ',':
+                    // this._handleMatch(i, char);
+                    this._handleDelimeter(i, char, this.str[i-1], this.str[i+1]);
                     break;
-                case this.quote:
-                    this._handleQuote(match.index, match[0]);
+                case '"':
+                    // this._handleMatch(i, char);
+                    this._handleQuote(i, char, this.str[i-1], this.str[i+1]);
                     break;
                 case this.newline:
-                    this._handleNewline(match.index, match[0]);
+                    // this._handleMatch(i, char);
+                    this._handleNewline(i, char, this.str[i-1], this.str[i+1]);
                     break;
-            }
+                // case '\025':
+                //     // this._handleMatch(i, char);
+                //     this._handleNewline(i, char);
+                //     break;
 
+            }
         }
+
+        // while ((match = this.regex.exec(this.str)) !== null) {
+
+        //     this._prevChar = this._nextChar;
+        //     this._prevIndex = this._nextIndex;
+        //     this._nextChar = match[0];
+        //     this._nextIndex = match.index;
+
+        //     switch (match[0]) {
+        //         case this.delimeter:
+        //             this._handleDelimeter(match.index, match[0]);
+        //             break;
+        //         case this.quote:
+        //             this._handleQuote(match.index, match[0]);
+        //             break;
+        //         case this.newline:
+        //             this._handleNewline(match.index, match[0]);
+        //             break;
+        //     }
+
+        // }
 
         this._nextIndex = -1;
         this._nextChar = '';
