@@ -12,7 +12,7 @@ describe('csv-spectrum', () => {
             }
 
             _.map(res, spec => {
-                let newline = /crlf/.test(spec.name) ? '\r\n' : '\n';
+                let newline = /crlf/.test(spec.name) ? 'crlf' : 'lf';
                 let parsed = csv.parse(spec.csv, { newline });
                 let json = JSON.parse(spec.json.toString());
                 expect(parsed).to.deep.equal(json);
