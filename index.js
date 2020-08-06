@@ -197,39 +197,59 @@ class CsvParser {
         line.str += str;
         line.offset = 0;
 
-        while (line.match != -1) {
+        // while (line.match != -1) {
 
-            // don't search if we still have a valid
-            // match from last call
-            line.delim = line.delim >= line.match ? line.delim : line.str.indexOf(this.delimeter, line.match);
-            line.quote = line.quote >= line.match ? line.quote : line.str.indexOf(this.quote, line.match);
-            line.min = Math.min(line.delim, line.quote);
-            line.max = Math.max(line.delim, line.quote);
-            // line.mid = (line.delim + line.quote + line.newline) - min - max;
-            // line.match = line.min > -1 ? line.min : line.mid > -1 ? line.mid : line.max;
-            line.match = line.min > -1 ? line.min : line.max;
+        //     // don't search if we still have a valid
+        //     // match from last call
+        //     line.delim = line.delim >= line.match ? line.delim : line.str.indexOf(this.delimeter, line.match);
+        //     line.quote = line.quote >= line.match ? line.quote : line.str.indexOf(this.quote, line.match);
+        //     line.min = Math.min(line.delim, line.quote);
+        //     line.max = Math.max(line.delim, line.quote);
+        //     // line.mid = (line.delim + line.quote + line.newline) - min - max;
+        //     // line.match = line.min > -1 ? line.min : line.mid > -1 ? line.mid : line.max;
+        //     line.match = line.min > -1 ? line.min : line.max;
 
-            if (line.match > -1) {
+        //     if (line.match > -1) {
 
-                switch (line.str[line.match]) {
-                    case ',':
-                        this._handleDelimeter(line.delim);
-                        break;
-                    case '"':
-                        this._handleQuote(line.quote);
-                        break;
-                }
+        //         switch (line.str[line.match]) {
+        //             case ',':
+        //                 this._handleDelimeter(line.delim);
+        //                 break;
+        //             case '"':
+        //                 this._handleQuote(line.quote);
+        //                 break;
+        //         }
 
-                line.match++;
+        //         line.match++;
 
-            } else {
-                this._handleNewline(line.str.length);
+        //     } else {
+        //         this._handleNewline(line.str.length);
+        //     }
+
+        // }
+
+        // if (line.offset < line.str.length) {
+        //     line.str = line.str.slice(line.offset);
+        // } else {
+        //     line.str = '';
+        // }
+
+        for (let i = 0; i < line.str.length; i++) {
+            switch (line.str[i]) {
+                case ',':
+                    this._handleDelimeter(i);
+                    break;
+                case '"':
+                    this._handleQuote(i);
+                    break;
             }
-
         }
+
+        this._handleNewline(line.str.length);
 
         if (line.offset < line.str.length) {
             line.str = line.str.slice(line.offset);
+            line.offset = 0;
         } else {
             line.str = '';
         }
