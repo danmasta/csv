@@ -18,9 +18,8 @@ class CsvParser {
 
     constructor (opts) {
 
-        opts = _.defaults(opts, defaults);
+        this.opts = opts = _.defaults(opts, defaults);
 
-        this.opts = opts;
         this.match;
         this.row = {};
         this.headers = [];
@@ -30,17 +29,28 @@ class CsvParser {
         this.rows = 0;
         this.slice = '';
         this.str = '';
-        this.delimeter = opts.delimeter;
-        this.quote = opts.quote;
+        this.delimeter = ',';
+        this.quote = '"';
         this.newline = opts.newline;
         this.decoder = new StringDecoder(opts.encoding);
+        this.raw = '';
 
-        this._prevIndex = -1;
-        this._prevChar = '';
-        this._nextIndex = -1;
-        this._nextChar = '';
+        this.line = {
+            str: '',
+            char: '',
+            delim: 0,
+            quote: 0,
+            match: 0,
+            min: 0,
+            max: 0,
+            offset: 0,
+        };
 
-        this.regex = new RegExp(`${opts.delimeter}|${opts.quote}|${opts.newline}`, 'g');
+        this.raw = {
+            str: '',
+            match: 0,
+            offset: 0
+        };
 
     }
 
@@ -91,7 +101,7 @@ class CsvParser {
 
     }
 
-    _flushCol (index, char) {
+    _flushCol (index) {
 
         if (this.rows) {
             this._flushValue();
@@ -102,9 +112,11 @@ class CsvParser {
         this.pos++;
         this.slice = '';
 
+        return undefined;
+
     }
 
-    _flushRow (index, char) {
+    _flushRow (index) {
 
         // we skip the first row for adding headers
         // except when headers are disabled
@@ -118,123 +130,151 @@ class CsvParser {
         this.row = {};
         this.pos = 0;
 
+        return undefined;
+
     }
 
-    _handleQuote (index, char) {
+    // append quote to string if needed
+    // because we always advance offset, might miss on next match
+    _handleQuote (index) {
 
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
-            this.slice += this.str.slice(this.offset, index);
-            this.offset = index;
+            this.slice += this.line.str.slice(this.line.offset, index);
+            this.line.offset = index;
         } else {
-            if (char === this._prevChar && index - char.length === this._prevIndex) {
-                this.slice += char;
+            if (this.line.str[this.line.offset-1] === '"') {
+                this.slice += '"';
             }
         }
 
-        this.offset += char.length;
+        this.line.offset += 1;
+
+        return;
 
     }
 
-    _handleDelimeter (index, char) {
+    // don't append delim if quoted, just skip
+    // delims are included in string slices, so it gets picked up on next match
+    _handleDelimeter (index) {
 
         if (this.quoted) return;
 
-        this.slice += this.str.slice(this.offset, index);
-        this.offset = index + char.length;
+        this.slice += this.line.str.slice(this.line.offset, index);
+        this.line.offset = index + 1;
 
-        this._flushCol(index, char);
+        this._flushCol(index);
 
-    }
-
-    _handleNewline (index, char) {
-
-        if (this.quoted) return;
-
-        this._handleDelimeter(index, char);
-        this._flushRow(index, char);
+        return;
 
     }
 
-    _match () {
+    // append newline to string if quoted
+    // because newlines are not included in initial slices
+    _handleNewline (index) {
 
-        this._prevIndex = this._nextIndex;
-        this._prevChar = this._nextChar;
-
-        let offset = this._prevIndex + this._prevChar.length;
-
-        offset = offset > -1 ? offset : this.offset;
-
-        let i = this.str.indexOf(this.delimeter, offset);
-        let j = this.str.indexOf(this.quote, offset);
-        let k = this.str.indexOf(this.newline, offset);
-
-        let next = Math.min(i > -1 ? i : Infinity, j > -1 ? j : Infinity, k > -1 ? k : Infinity);
-
-        if (next !== Infinity) {
-            this._nextIndex = next;
-            this._nextChar = next === i ? this.delimeter : next === j ? this.quote : this.newline;
+        if (this.quoted) {
+            this.line.str += this.newline;
         } else {
-            this._nextIndex = -1;
-            this._nextChar = '';
+            this._handleDelimeter(index);
+            this._flushRow(index);
         }
 
-        return this._nextIndex;
+        return;
+
+    }
+
+    _handleLine (str) {
+
+        let line = this.line;
+
+        line.delim = 0;
+        line.quote = 0;
+        line.match = 0;
+        line.min = 0;
+        line.max = 0;
+        line.str += str;
+        line.offset = 0;
+
+        while (line.match != -1) {
+
+            // don't search if we still have a valid
+            // match from last call
+            line.delim = line.delim >= line.match ? line.delim : line.str.indexOf(this.delimeter, line.match);
+            line.quote = line.quote >= line.match ? line.quote : line.str.indexOf(this.quote, line.match);
+            line.min = Math.min(line.delim, line.quote);
+            line.max = Math.max(line.delim, line.quote);
+            // line.mid = (line.delim + line.quote + line.newline) - min - max;
+            // line.match = line.min > -1 ? line.min : line.mid > -1 ? line.mid : line.max;
+            line.match = line.min > -1 ? line.min : line.max;
+
+            if (line.match > -1) {
+
+                switch (line.str[line.match]) {
+                    case ',':
+                        this._handleDelimeter(line.delim);
+                        break;
+                    case '"':
+                        this._handleQuote(line.quote);
+                        break;
+                }
+
+                line.match++;
+
+            } else {
+                this._handleNewline(line.str.length);
+            }
+
+        }
+
+        if (line.offset < line.str.length) {
+            line.str = line.str.slice(line.offset);
+        } else {
+            line.str = '';
+        }
 
     }
 
     parse (str) {
 
-        let match;
+        let raw = this.raw;
 
-        // handle buffers and strings
+        raw.match = 0;
+        raw.offset = 0;
+
         if (this.opts.buffer) {
-            this.str += this.decoder.write(str);
+            raw.str += this.decoder.write(str);
         } else {
-            this.str += str;
+            raw.str += str;
         }
 
-        while ((match = this.regex.exec(this.str)) !== null) {
+        while (raw.match != -1) {
 
-            this._prevChar = this._nextChar;
-            this._prevIndex = this._nextIndex;
-            this._nextChar = match[0];
-            this._nextIndex = match.index;
+            raw.offset = raw.match;
+            raw.match = raw.str.indexOf(this.newline, raw.match);
 
-            switch (match[0]) {
-                case this.delimeter:
-                    this._handleDelimeter(match.index, match[0]);
-                    break;
-                case this.quote:
-                    this._handleQuote(match.index, match[0]);
-                    break;
-                case this.newline:
-                    this._handleNewline(match.index, match[0]);
-                    break;
+            if (raw.match > -1) {
+                this._handleLine(raw.str.slice(raw.offset, raw.match));
+                raw.match += this.newline.length;
             }
 
         }
 
-        this._nextIndex = -1;
-        this._nextChar = '';
-
-
-        if (this.offset < this.str.length - 1) {
-            this.str = this.str.slice(this.offset);
-            this.offset = 0;
+        if (raw.offset < raw.str.length) {
+            raw.str = raw.str.slice(raw.offset);
+        } else {
+            raw.str = '';
         }
 
     }
 
     flush () {
 
-        this.str += this.decoder.end();
-        this.slice += this.str.slice(this.offset);
+        this.raw.str += this.decoder.end();
 
-        if (this.slice.length) {
-            this._flushCol();
-            this._flushRow();
+        if (this.raw.str.length){
+            this._handleLine(this.raw.str);
         }
 
     }
