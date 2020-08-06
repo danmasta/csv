@@ -48,7 +48,14 @@ class CsvParser {
 
         this.raw = {
             str: '',
+            char: '',
+            delim: 0,
+            quote: 0,
+            newline: 0,
             match: 0,
+            min: 0,
+            mid: 0,
+            max: 0,
             offset: 0
         };
 
@@ -112,8 +119,6 @@ class CsvParser {
         this.pos++;
         this.slice = '';
 
-        return undefined;
-
     }
 
     _flushRow (index) {
@@ -130,8 +135,6 @@ class CsvParser {
         this.row = {};
         this.pos = 0;
 
-        return undefined;
-
     }
 
     // append quote to string if needed
@@ -141,32 +144,28 @@ class CsvParser {
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
-            this.slice += this.line.str.slice(this.line.offset, index);
-            this.line.offset = index;
+            this.slice += this.raw.str.slice(this.raw.offset, index);
+            this.raw.offset = index;
         } else {
-            if (this.line.str[this.line.offset-1] === '"') {
+            if (this.raw.str[this.raw.offset - 1] === '"') {
                 this.slice += '"';
             }
         }
 
-        this.line.offset += 1;
-
-        return;
+        this.raw.offset += 1;
 
     }
 
     // don't append delim if quoted, just skip
     // delims are included in string slices, so it gets picked up on next match
-    _handleDelimeter (index) {
+    _handleDelimeter (index, newline) {
 
         if (this.quoted) return;
 
-        this.slice += this.line.str.slice(this.line.offset, index);
-        this.line.offset = index + 1;
+        this.slice += this.raw.str.slice(this.raw.offset, index);
+        this.raw.offset = index + (newline ? this.newline.length : 1);
 
         this._flushCol(index);
-
-        return;
 
     }
 
@@ -174,65 +173,10 @@ class CsvParser {
     // because newlines are not included in initial slices
     _handleNewline (index) {
 
-        if (this.quoted) {
-            this.line.str += this.newline;
-        } else {
-            this._handleDelimeter(index);
-            this._flushRow(index);
-        }
+        if (this.quoted) return;
 
-        return;
-
-    }
-
-    _handleLine (str) {
-
-        let line = this.line;
-
-        line.delim = 0;
-        line.quote = 0;
-        line.match = 0;
-        line.min = 0;
-        line.max = 0;
-        line.str += str;
-        line.offset = 0;
-
-        while (line.match != -1) {
-
-            // don't search if we still have a valid
-            // match from last call
-            line.delim = line.delim >= line.match ? line.delim : line.str.indexOf(this.delimeter, line.match);
-            line.quote = line.quote >= line.match ? line.quote : line.str.indexOf(this.quote, line.match);
-            line.min = Math.min(line.delim, line.quote);
-            line.max = Math.max(line.delim, line.quote);
-            // line.mid = (line.delim + line.quote + line.newline) - min - max;
-            // line.match = line.min > -1 ? line.min : line.mid > -1 ? line.mid : line.max;
-            line.match = line.min > -1 ? line.min : line.max;
-
-            if (line.match > -1) {
-
-                switch (line.str[line.match]) {
-                    case ',':
-                        this._handleDelimeter(line.delim);
-                        break;
-                    case '"':
-                        this._handleQuote(line.quote);
-                        break;
-                }
-
-                line.match++;
-
-            } else {
-                this._handleNewline(line.str.length);
-            }
-
-        }
-
-        if (line.offset < line.str.length) {
-            line.str = line.str.slice(line.offset);
-        } else {
-            line.str = '';
-        }
+        this._handleDelimeter(index, true);
+        this._flushRow(index);
 
     }
 
@@ -240,7 +184,13 @@ class CsvParser {
 
         let raw = this.raw;
 
+        raw.delim = -1;
+        raw.quote = -1;
+        raw.newline = -1;
         raw.match = 0;
+        raw.min = 0;
+        raw.mid = 0;
+        raw.max = 0;
         raw.offset = 0;
 
         if (this.opts.buffer) {
@@ -251,30 +201,55 @@ class CsvParser {
 
         while (raw.match != -1) {
 
-            raw.offset = raw.match;
-            raw.match = raw.str.indexOf(this.newline, raw.match);
+            raw.delim = raw.delim >= raw.match ? raw.delim : raw.str.indexOf(this.delimeter, raw.match);
+            raw.quote = raw.quote >= raw.match ? raw.quote : raw.str.indexOf(this.quote, raw.match);
+            raw.newline = raw.newline >= raw.match ? raw.newline : raw.str.indexOf(this.newline, raw.match);
+            raw.min = Math.min(raw.delim, raw.quote, raw.newline);
+            raw.max = Math.max(raw.delim, raw.quote, raw.newline);
+            raw.mid = (raw.delim + raw.quote + raw.newline) - raw.min - raw.max;
+            raw.match = raw.min > -1 ? raw.min : raw.mid > -1 ? raw.mid : raw.max;
 
             if (raw.match > -1) {
-                this._handleLine(raw.str.slice(raw.offset, raw.match));
-                raw.match += this.newline.length;
+
+                switch (raw.str[raw.match]) {
+                    case ',':
+                        this._handleDelimeter(raw.match);
+                        raw.match++;
+                        break;
+                    case '"':
+                        this._handleQuote(raw.match);
+                        raw.match++;
+                        break;
+                    default:
+                        this._handleNewline(raw.match);
+                        raw.match += this.newline.length;
+                        break;
+                }
+
             }
 
         }
 
         if (raw.offset < raw.str.length) {
             raw.str = raw.str.slice(raw.offset);
+            raw.offset = 0;
         } else {
             raw.str = '';
+            raw.offset = 0;
         }
 
     }
 
     flush () {
 
-        this.raw.str += this.decoder.end();
+        let raw = this.raw;
 
-        if (this.raw.str.length){
-            this._handleLine(this.raw.str);
+        raw.str += this.decoder.end();
+        this.slice += raw.str.slice(raw.offset);
+
+        if (this.slice.length) {
+            this._flushCol();
+            this._flushRow();
         }
 
     }
