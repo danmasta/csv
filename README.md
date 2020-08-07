@@ -106,7 +106,7 @@ Pop-By-Zip-LA    Buffer  0.18     3,199   120,912     1.28       2,490,424.44  9
 Stats-By-Zip-NY  String  0.41     2,369   263,168     15.68      151,058.46    16,780,816.02
 Stats-By-Zip-NY  Buffer  0.41     2,369   263,168     14.52      163,183.15    18,127,726.59
 ```
-*Speed and throughput are highly dependent on the density (token matches/byte length) of data, as well as the size of the headers. The [earthquakes](https://github.com/danmasta/csv/blob/master/tests/data/Earthquakes.csv) file test data represents a roughly average level of density for common csv datas. The [demographics by zip code](https://github.com/danmasta/csv/blob/master/tests/data/Demographic_Statistics_By_Zip_Code_NY.csv) file represents an example of very dense csv data*
+*Speed and throughput are highly dependent on the density (token matches/byte length) of data as well as the size of the objects created. The [earthquakes](https://github.com/danmasta/csv/blob/master/tests/data/Earthquakes.csv) file test data represents a roughly average level of density for common csv datas. The [demographics by zip code](https://github.com/danmasta/csv/blob/master/tests/data/Demographic_Statistics_By_Zip_Code_NY.csv) file represents an example of very dense csv data*
 
 ## Contact
 If you have any questions feel free to get in touch
