@@ -70,17 +70,19 @@ class CsvParser {
     _flushValue () {
 
         let slice = this.slice;
+        let opts = this.opts;
+        let headers = this.headers;
 
-        if (this.opts.values) {
+        if (opts.values) {
 
-            if (typeof this.opts.values === 'function') {
-                this.row[this.headers[this.pos]] = this.opts.values(slice, this.headers[this.pos]);
+            if (typeof opts.values === 'function') {
+                this.row[headers[this.pos]] = opts.values(slice, headers[this.pos]);
             } else {
-                this.row[this.headers[this.pos]] = this.opts.values.hasOwnProperty(slice) ? this.opts.values[slice] : slice;
+                this.row[headers[this.pos]] = opts.values.hasOwnProperty(slice) ? opts.values[slice] : slice;
             }
 
         } else {
-            this.row[this.headers[this.pos]] = slice;
+            this.row[headers[this.pos]] = slice;
         }
 
     }
@@ -88,27 +90,30 @@ class CsvParser {
     _flushHeader () {
 
         let slice = this.slice;
+        let opts = this.opts;
+        let headers = this.headers;
+        let type = typeof opts.headers;
 
-        if (!this.opts.headers) {
+        if (!opts.headers) {
 
-            this.headers.push(this.pos);
+            headers.push(this.pos);
             this._flushValue();
 
-        } else if (typeof this.opts.headers === 'boolean') {
+        } else if (type === 'boolean') {
 
-            this.headers.push(slice);
+            headers.push(slice);
 
-        } else if (Array.isArray(this.opts.headers)) {
+        } else if (Array.isArray(opts.headers)) {
 
-            this.headers.push(this.opts.headers.hasOwnProperty(this.pos) ? this.opts.headers[this.pos] : this.pos);
+            headers.push(opts.headers.hasOwnProperty(this.pos) ? opts.headers[this.pos] : this.pos);
 
-        } else if (typeof this.opts.headers === 'object') {
+        } else if (type === 'object') {
 
-            this.headers.push(this.opts.headers.hasOwnProperty(slice) ? this.opts.headers[slice] : slice);
+            headers.push(opts.headers.hasOwnProperty(slice) ? opts.headers[slice] : slice);
 
-        } else if (typeof this.opts.headers === 'function') {
+        } else if (type === 'function') {
 
-            this.headers.push(this.opts.headers(slice));
+            headers.push(opts.headers(slice));
 
         }
 
