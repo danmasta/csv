@@ -1,6 +1,6 @@
-const _ = require('lodash');
 const Transform = require('stream').Transform;
 const StringDecoder = require('string_decoder').StringDecoder;
+const _ = require('lodash');
 
 const defaults = {
     headers: true,
@@ -12,6 +12,14 @@ const defaults = {
     buffer: false,
     encoding: 'utf8'
 };
+
+// class Row {
+//     constructor (headers) {
+//         _.each(headers, key => {
+//             this[key] = '';
+//         });
+//     }
+// }
 
 // https://tools.ietf.org/html/rfc4180
 class CsvParser {
@@ -34,6 +42,7 @@ class CsvParser {
         this.newline = opts.newline;
         this.decoder = new StringDecoder(opts.encoding);
         this.raw = '';
+        // this.obj = {};
 
         this.line = {
             str: '',
@@ -50,6 +59,27 @@ class CsvParser {
             str: '',
             match: 0,
             offset: 0
+        };
+
+        this.delim = {
+            char: ',',
+            match: -1,
+            prev: -1,
+            next: -1
+        };
+
+        this.quote = {
+            char: '"',
+            match: -1,
+            prev: -1,
+            next: -1
+        };
+
+        this.newline = {
+            char: opts.newline,
+            match: -1,
+            prev: -1,
+            next: -1
         };
 
     }
@@ -109,6 +139,8 @@ class CsvParser {
             this._flushHeader();
         }
 
+        // console.log('COL', this.slice, this.rows, this.pos)
+
         this.pos++;
         this.slice = '';
 
@@ -126,8 +158,12 @@ class CsvParser {
             this.opts.cb(this.row);
         }
 
+        // console.log('ROW', this.row, this.pos);
+
         this.rows++;
         this.row = {};
+        // this.row = Object.create(this.obj);
+        // this.row = new Row(this.headers);
         this.pos = 0;
 
         return undefined;
@@ -138,18 +174,43 @@ class CsvParser {
     // because we always advance offset, might miss on next match
     _handleQuote (index) {
 
+        // console.log('HANDLE QUOTE', index)
+        this.quote.next = this.line.str.indexOf(this.quote.char, index + 1);
+
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
             this.slice += this.line.str.slice(this.line.offset, index);
             this.line.offset = index;
         } else {
-            if (this.line.str[this.line.offset-1] === '"') {
+            if (this.line.str[index-1] === '"') {
                 this.slice += '"';
             }
         }
 
         this.line.offset += 1;
+        // this.quote.match = this.line.str.indexOf(this.quote.char, ++index);
+
+        this.quote.match = this.quote.next;
+
+        // if (this.quote.next === index + 1) {
+        //     this._handleQuote(this.quote.next);
+        // } else if (this.delim.match > -1 && (this.delim.match < this.quote.match || (this.quote.match === -1))) {
+        //     this._handleDelimeter(this.delim.match)
+        // }
+
+        if (this.delim.match === -1 && this.quote.match > -1) {
+            // console.log('SHORTCUT')
+            this._handleQuote(this.quote.match);
+        // } else if (this.delim.match > -1 && (this.quote.match > -1) && (this.quote.match < this.delim.match)) {
+        }
+        else if (this.delim.match > -1) {
+            if (this.quote.match > -1 && (this.quote.match < this.delim.match)) {
+                this._handleQuote(this.quote.match);
+            } else {
+                this._handleDelimeter(this.delim.match);
+            }
+        }
 
         return;
 
@@ -159,12 +220,39 @@ class CsvParser {
     // delims are included in string slices, so it gets picked up on next match
     _handleDelimeter (index) {
 
-        if (this.quoted) return;
+        // console.log('HANDLE DELIM', index, this.line.str.indexOf(this.delim.char, ++index))
+        // console.log('HANDLE DELIM', this.quote.match)
 
-        this.slice += this.line.str.slice(this.line.offset, index);
-        this.line.offset = index + 1;
+        this.delim.next = this.line.str.indexOf(this.delim.char, index + 1);
 
-        this._flushCol(index);
+        if (this.quoted) {
+            // return;
+        } else {
+            this.slice += this.line.str.slice(this.line.offset, index);
+            this.line.offset = index + 1;
+            this._flushCol(index);
+        }
+
+        // this.delim.match = this.line.str.indexOf(this.delim.char, ++index);
+        this.delim.match = this.delim.next;
+
+        if (this.quote.match === -1 && this.delim.match > -1) {
+            // console.log('SHORTCUT')
+            this._handleDelimeter(this.delim.match);
+        }
+        else if (this.quote.match > -1) {
+            if (this.delim.match > -1 && (this.delim.match < this.quote.match)) {
+                this._handleDelimeter(this.delim.match);
+            } else {
+                this._handleQuote(this.quote.match);
+            }
+        }
+
+        // if (this.delim.next === index + 1) {
+        //     this._handleDelimeter(this.delim.next);
+        // } else if (this.quote.match > -1 && (this.quote.match < this.delim.match || (this.delim.match === -1))) {
+        //     this._handleQuote(this.quote.match);
+        // }
 
         return;
 
@@ -175,9 +263,12 @@ class CsvParser {
     _handleNewline (index) {
 
         if (this.quoted) {
-            this.line.str += this.newline;
+            this.line.str += this.newline.char;
         } else {
-            this._handleDelimeter(index);
+            this.slice += this.line.str.slice(this.line.offset, index);
+            this.line.offset = index + this.newline.char.length;
+            this._flushCol(index);
+            // this._handleDelimeter(index);
             this._flushRow(index);
         }
 
@@ -195,7 +286,33 @@ class CsvParser {
         line.min = 0;
         line.max = 0;
         line.str += str;
-        line.offset = 0;
+        // line.offset = 0;
+
+        this.delim.match = line.str.indexOf(this.delim.char, 0);
+        this.quote.match = line.str.indexOf(this.quote.char, 0);
+
+        // console.log('LINE!', this.delim, this.quote)
+
+        // while (this.delim.match != -1 || this.quote.match != -1) {
+
+            // console.log('HANDELINE WHILE')
+
+            line.min = Math.min(this.delim.match, this.quote.match);
+            line.max = Math.max(this.delim.match, this.quote.match);
+            line.match = line.min > -1 ? line.min : line.max;
+
+            // console.log('MATCH', line.match, this.delim.match, this.quote.match)
+
+            switch (line.str[line.match]) {
+                case ',':
+                    this._handleDelimeter(line.match);
+                    break;
+                case '"':
+                    this._handleQuote(line.match);
+                    break;
+            }
+
+        // }
 
         // while (line.match != -1) {
 
@@ -234,16 +351,16 @@ class CsvParser {
         //     line.str = '';
         // }
 
-        for (let i = 0; i < line.str.length; i++) {
-            switch (line.str[i]) {
-                case ',':
-                    this._handleDelimeter(i);
-                    break;
-                case '"':
-                    this._handleQuote(i);
-                    break;
-            }
-        }
+        // for (let i = 0; i < line.str.length; i++) {
+        //     switch (line.str[i]) {
+        //         case ',':
+        //             this._handleDelimeter(i);
+        //             break;
+        //         case '"':
+        //             this._handleQuote(i);
+        //             break;
+        //     }
+        // }
 
         this._handleNewline(line.str.length);
 
@@ -252,6 +369,7 @@ class CsvParser {
             line.offset = 0;
         } else {
             line.str = '';
+            line.offset = 0;
         }
 
     }
@@ -272,11 +390,11 @@ class CsvParser {
         while (raw.match != -1) {
 
             raw.offset = raw.match;
-            raw.match = raw.str.indexOf(this.newline, raw.match);
+            raw.match = raw.str.indexOf(this.newline.char, raw.match);
 
             if (raw.match > -1) {
                 this._handleLine(raw.str.slice(raw.offset, raw.match));
-                raw.match += this.newline.length;
+                raw.match += this.newline.char.length;
             }
 
         }
@@ -293,7 +411,7 @@ class CsvParser {
 
         this.raw.str += this.decoder.end();
 
-        if (this.raw.str.length){
+        if (this.raw.str.length) {
             this._handleLine(this.raw.str);
         }
 
