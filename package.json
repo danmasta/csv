@@ -23,7 +23,7 @@
     "url": "https://github.com/danmasta/csv.git"
   },
   "devDependencies": {
-    "@danmasta/walk": "^1.1.1",
+    "@danmasta/walk": "^3.0.1",
     "chai": "^4.2.0",
     "csv-spectrum": "^1.0.0",
     "easy-table": "^1.1.1",
