@@ -99,12 +99,12 @@ Benchmarks are currently built using gulp. Just run `gulp bench` to test timings
 ```
 Filename         Mode    Density  Rows    Bytes       Time (ms)  Rows/Sec      Bytes/Sec
 ---------------  ------  -------  ------  ----------  ---------  ------------  --------------
-Earthquakes      String  0.11     72,689  11,392,064  120.63     602,601.46    94,441,722.74
-Earthquakes      Buffer  0.11     72,689  11,392,064  105.2      690,963.75    108,290,157.89
-Pop-By-Zip-LA    String  0.18     3,199   120,912     2.28       1,400,557.77  52,936,618.08
-Pop-By-Zip-LA    Buffer  0.18     3,199   120,912     1.2        2,676,069.3   101,146,886.84
-Stats-By-Zip-NY  String  0.41     2,369   263,168     14.62      161,986.01    17,994,737.8
-Stats-By-Zip-NY  Buffer  0.41     2,369   263,168     15.19      155,966.18    17,326,006.31
+Earthquakes      String  0.11     72,689  11,392,064  121.66     597,492.68    93,641,058.06
+Earthquakes      Buffer  0.11     72,689  11,392,064  104.8      693,582.44    108,700,567.12
+Pop-By-Zip-LA    String  0.18     3,199   120,912     1.88       1,702,582.7   64,352,197.35
+Pop-By-Zip-LA    Buffer  0.18     3,199   120,912     1.28       2,490,424.44  94,130,103.07
+Stats-By-Zip-NY  String  0.41     2,369   263,168     15.68      151,058.46    16,780,816.02
+Stats-By-Zip-NY  Buffer  0.41     2,369   263,168     14.52      163,183.15    18,127,726.59
 ```
 *Speed and throughput are highly dependent on the density (token matches/byte length) of data, as well as the size of the headers. The [earthquakes](https://github.com/danmasta/csv/blob/master/tests/data/Earthquakes.csv) file test data represents a roughly average level of density for common csv datas. The [demographics by zip code](https://github.com/danmasta/csv/blob/master/tests/data/Demographic_Statistics_By_Zip_Code_NY.csv) file represents an example of very dense csv data*
 
