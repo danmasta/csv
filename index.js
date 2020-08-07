@@ -13,14 +13,6 @@ const defaults = {
     encoding: 'utf8'
 };
 
-// class Row {
-//     constructor (headers) {
-//         _.each(headers, key => {
-//             this[key] = '';
-//         });
-//     }
-// }
-
 // https://tools.ietf.org/html/rfc4180
 class CsvParser {
 
@@ -28,7 +20,6 @@ class CsvParser {
 
         this.opts = opts = _.defaults(opts, defaults);
 
-        this.match;
         this.row = {};
         this.headers = [];
         this.pos = 0;
@@ -41,19 +32,6 @@ class CsvParser {
         this.quote = '"';
         this.newline = opts.newline;
         this.decoder = new StringDecoder(opts.encoding);
-        this.raw = '';
-        // this.obj = {};
-
-        this.line = {
-            str: '',
-            char: '',
-            delim: 0,
-            quote: 0,
-            match: 0,
-            min: 0,
-            max: 0,
-            offset: 0,
-        };
 
         this.raw = {
             str: '',
@@ -61,24 +39,29 @@ class CsvParser {
             offset: 0
         };
 
+        this.line = {
+            str: '',
+            match: 0,
+            min: 0,
+            max: 0,
+            offset: 0,
+        };
+
         this.delim = {
             char: ',',
             match: -1,
-            prev: -1,
             next: -1
         };
 
         this.quote = {
             char: '"',
             match: -1,
-            prev: -1,
             next: -1
         };
 
         this.newline = {
             char: opts.newline,
             match: -1,
-            prev: -1,
             next: -1
         };
 
@@ -131,7 +114,7 @@ class CsvParser {
 
     }
 
-    _flushCol (index) {
+    _flushCol () {
 
         if (this.rows) {
             this._flushValue();
@@ -139,16 +122,12 @@ class CsvParser {
             this._flushHeader();
         }
 
-        // console.log('COL', this.slice, this.rows, this.pos)
-
         this.pos++;
         this.slice = '';
 
-        return undefined;
-
     }
 
-    _flushRow (index) {
+    _flushRow () {
 
         // we skip the first row for adding headers
         // except when headers are disabled
@@ -158,61 +137,53 @@ class CsvParser {
             this.opts.cb(this.row);
         }
 
-        // console.log('ROW', this.row, this.pos);
-
         this.rows++;
         this.row = {};
-        // this.row = Object.create(this.obj);
-        // this.row = new Row(this.headers);
         this.pos = 0;
-
-        return undefined;
 
     }
 
+    _flushSlice (index) {
+        this.slice += this.line.str.slice(this.line.offset, index);
+    }
+
     // append quote to string if needed
-    // because we always advance offset, might miss on next match
+    // we always advance offset, so might miss on next match
     _handleQuote (index) {
 
-        // console.log('HANDLE QUOTE', index)
-        this.quote.next = this.line.str.indexOf(this.quote.char, index + 1);
+        let line = this.line;
+        let delim = this.delim;
+        let quote = this.quote;
+
+        // set next match
+        quote.match = quote.next;
+        quote.next = line.str.indexOf(quote.char, index + 1);
 
         this.quoted = !this.quoted;
 
         if (!this.quoted) {
-            this.slice += this.line.str.slice(this.line.offset, index);
-            this.line.offset = index;
+            this._flushSlice(index);
+            line.offset = index;
         } else {
-            if (this.line.str[index-1] === '"') {
+            if (line.str[index - 1] === '"') {
                 this.slice += '"';
             }
         }
 
-        this.line.offset += 1;
-        // this.quote.match = this.line.str.indexOf(this.quote.char, ++index);
+        line.offset++;
 
-        this.quote.match = this.quote.next;
+        // shortcut
+        if (delim.next === -1 && quote.next > -1) {
+            this._handleQuote(quote.next);
 
-        // if (this.quote.next === index + 1) {
-        //     this._handleQuote(this.quote.next);
-        // } else if (this.delim.match > -1 && (this.delim.match < this.quote.match || (this.quote.match === -1))) {
-        //     this._handleDelimeter(this.delim.match)
-        // }
-
-        if (this.delim.match === -1 && this.quote.match > -1) {
-            // console.log('SHORTCUT')
-            this._handleQuote(this.quote.match);
-        // } else if (this.delim.match > -1 && (this.quote.match > -1) && (this.quote.match < this.delim.match)) {
-        }
-        else if (this.delim.match > -1) {
-            if (this.quote.match > -1 && (this.quote.match < this.delim.match)) {
-                this._handleQuote(this.quote.match);
+        // handle next match
+        } else if (delim.next > -1) {
+            if (quote.next > -1 && (quote.next < delim.next)) {
+                this._handleQuote(quote.next);
             } else {
-                this._handleDelimeter(this.delim.match);
+                this._handleDelimeter(delim.next);
             }
         }
-
-        return;
 
     }
 
@@ -220,41 +191,32 @@ class CsvParser {
     // delims are included in string slices, so it gets picked up on next match
     _handleDelimeter (index) {
 
-        // console.log('HANDLE DELIM', index, this.line.str.indexOf(this.delim.char, ++index))
-        // console.log('HANDLE DELIM', this.quote.match)
+        let line = this.line;
+        let delim = this.delim;
+        let quote = this.quote;
 
-        this.delim.next = this.line.str.indexOf(this.delim.char, index + 1);
+        // set next match
+        delim.match = delim.next;
+        delim.next = line.str.indexOf(delim.char, index + 1);
 
-        if (this.quoted) {
-            // return;
-        } else {
-            this.slice += this.line.str.slice(this.line.offset, index);
-            this.line.offset = index + 1;
+        if (!this.quoted) {
+            this._flushSlice(index);
+            line.offset = index + 1;
             this._flushCol(index);
         }
 
-        // this.delim.match = this.line.str.indexOf(this.delim.char, ++index);
-        this.delim.match = this.delim.next;
+        // shortcut
+        if (quote.next === -1 && delim.next > -1) {
+            this._handleDelimeter(delim.next);
 
-        if (this.quote.match === -1 && this.delim.match > -1) {
-            // console.log('SHORTCUT')
-            this._handleDelimeter(this.delim.match);
-        }
-        else if (this.quote.match > -1) {
-            if (this.delim.match > -1 && (this.delim.match < this.quote.match)) {
-                this._handleDelimeter(this.delim.match);
+        // handle next match
+        } else if (quote.next > -1) {
+            if (delim.next > -1 && (delim.next < quote.next)) {
+                this._handleDelimeter(delim.next);
             } else {
-                this._handleQuote(this.quote.match);
+                this._handleQuote(quote.next);
             }
         }
-
-        // if (this.delim.next === index + 1) {
-        //     this._handleDelimeter(this.delim.next);
-        // } else if (this.quote.match > -1 && (this.quote.match < this.delim.match || (this.delim.match === -1))) {
-        //     this._handleQuote(this.quote.match);
-        // }
-
-        return;
 
     }
 
@@ -265,102 +227,41 @@ class CsvParser {
         if (this.quoted) {
             this.line.str += this.newline.char;
         } else {
-            this.slice += this.line.str.slice(this.line.offset, index);
+            this._flushSlice(index);
             this.line.offset = index + this.newline.char.length;
             this._flushCol(index);
-            // this._handleDelimeter(index);
             this._flushRow(index);
         }
-
-        return;
 
     }
 
     _handleLine (str) {
 
         let line = this.line;
+        let delim = this.delim;
+        let quote = this.quote;
 
-        line.delim = 0;
-        line.quote = 0;
         line.match = 0;
         line.min = 0;
         line.max = 0;
         line.str += str;
-        // line.offset = 0;
 
-        this.delim.match = line.str.indexOf(this.delim.char, 0);
-        this.quote.match = line.str.indexOf(this.quote.char, 0);
+        delim.next = line.str.indexOf(delim.char, 0);
+        quote.next = line.str.indexOf(quote.char, 0);
 
-        // console.log('LINE!', this.delim, this.quote)
+        line.min = Math.min(delim.next, quote.next);
+        line.max = Math.max(delim.next, quote.next);
 
-        // while (this.delim.match != -1 || this.quote.match != -1) {
+        line.match = line.min > -1 ? line.min : line.max;
 
-            // console.log('HANDELINE WHILE')
-
-            line.min = Math.min(this.delim.match, this.quote.match);
-            line.max = Math.max(this.delim.match, this.quote.match);
-            line.match = line.min > -1 ? line.min : line.max;
-
-            // console.log('MATCH', line.match, this.delim.match, this.quote.match)
-
-            switch (line.str[line.match]) {
-                case ',':
-                    this._handleDelimeter(line.match);
-                    break;
-                case '"':
-                    this._handleQuote(line.match);
-                    break;
-            }
-
-        // }
-
-        // while (line.match != -1) {
-
-        //     // don't search if we still have a valid
-        //     // match from last call
-        //     line.delim = line.delim >= line.match ? line.delim : line.str.indexOf(this.delimeter, line.match);
-        //     line.quote = line.quote >= line.match ? line.quote : line.str.indexOf(this.quote, line.match);
-        //     line.min = Math.min(line.delim, line.quote);
-        //     line.max = Math.max(line.delim, line.quote);
-        //     // line.mid = (line.delim + line.quote + line.newline) - min - max;
-        //     // line.match = line.min > -1 ? line.min : line.mid > -1 ? line.mid : line.max;
-        //     line.match = line.min > -1 ? line.min : line.max;
-
-        //     if (line.match > -1) {
-
-        //         switch (line.str[line.match]) {
-        //             case ',':
-        //                 this._handleDelimeter(line.delim);
-        //                 break;
-        //             case '"':
-        //                 this._handleQuote(line.quote);
-        //                 break;
-        //         }
-
-        //         line.match++;
-
-        //     } else {
-        //         this._handleNewline(line.str.length);
-        //     }
-
-        // }
-
-        // if (line.offset < line.str.length) {
-        //     line.str = line.str.slice(line.offset);
-        // } else {
-        //     line.str = '';
-        // }
-
-        // for (let i = 0; i < line.str.length; i++) {
-        //     switch (line.str[i]) {
-        //         case ',':
-        //             this._handleDelimeter(i);
-        //             break;
-        //         case '"':
-        //             this._handleQuote(i);
-        //             break;
-        //     }
-        // }
+        switch (line.str[line.match]) {
+            case ',':
+                this._handleDelimeter(line.match);
+                break;
+            case '"':
+                this._handleQuote(line.match);
+                break;
+        }
 
         this._handleNewline(line.str.length);
 
