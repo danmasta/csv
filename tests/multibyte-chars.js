@@ -8,12 +8,12 @@ describe('multibyte-chars', () => {
         let stream = util.createReadStream(util.toCharArray(data), { encoding: null });
         let res = [];
 
-        return stream.pipe(csv.stream())
+        return stream.pipe(csv())
             .on('data', chunk => {
                 res.push(chunk);
             })
             .once('end', () => {
-                expect(_.isEqual(res, [ { col0: 'é', col1: '£', col2: '€' } ]));
+                expect(_.isEqual(res, [ { col0: 'é', col1: '£', col2: '€' } ])).to.be.true;
                 done();
             });
 
