@@ -3,6 +3,7 @@
   "version": "0.0.10",
   "author": "Daniel Smith <dannmasta@gmail.com>",
   "description": "CSV Parser",
+  "license": "MIT",
   "keywords": [
     "csv",
     "parser",
