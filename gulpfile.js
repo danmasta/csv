@@ -1,23 +1,27 @@
-const pw = require('@danmasta/walk');
+const walk = require('@danmasta/walk');
 const gulp = require('gulp');
 const Table = require('easy-table');
 const _ = require('lodash');
-const CSV = require('./index');
+const csv = require('./index');
 const util = require('./lib/util');
 
 gulp.task('test-stream', () => {
 
-    return util.getCSVData().then(data => {
+    return util.getCsvFileData({ size: 20 }).then(data => {
 
-        let count = 0;
+        let rows = 0;
         let start = process.hrtime();
+        let bytes = 0;
+        let ms = 0;
 
-        return data.stream.pipe(CSV.stream())
+        return data.stream.pipe(csv())
             .on('data', chunk => {
-                count++;
+                rows++;
             })
             .once('end', () => {
-                util.stats(util.ms(start), count, Buffer.byteLength(data.str));
+                ms = util.ms(start);
+                bytes = Buffer.byteLength(data.str);
+                util.stats({ ms, rows, bytes });
             });
 
     });
@@ -26,12 +30,15 @@ gulp.task('test-stream', () => {
 
 gulp.task('test-parse', () => {
 
-    return util.getCSVData().then(data => {
+    return util.getCsvFileData({ size: 20 }).then(data => {
 
         let start = process.hrtime();
-        let res = CSV.parse(data.str);
+        let res = csv.parse(data.str);
+        let ms = util.ms(start);
+        let rows = res.length;
+        let bytes = Buffer.byteLength(data.str);
 
-        util.stats(util.ms(start), res.length, Buffer.byteLength(data.str));
+        util.stats({ ms, rows, bytes });
 
     });
 
@@ -39,12 +46,15 @@ gulp.task('test-parse', () => {
 
 gulp.task('test-buffer', () => {
 
-    return util.getCSVData().then(data => {
+    return util.getCsvFileData({ size: 20 }).then(data => {
 
         let start = process.hrtime();
-        let res = CSV.parse(data.buff);
+        let res = csv.parse(data.buff);
+        let ms = util.ms(start);
+        let rows = res.length;
+        let bytes = Buffer.byteLength(data.str);
 
-        util.stats(util.ms(start), res.length, Buffer.byteLength(data.str));
+        util.stats({ ms, rows, bytes });
 
     });
 
@@ -52,26 +62,34 @@ gulp.task('test-buffer', () => {
 
 gulp.task('bench', () => {
 
-    return pw.contents('./tests/data', { src: '**/*.csv' }).map(file => {
+    return walk('./tests/data', { src: '**/*.csv' }).contents().map(file => {
 
-        let contents = util.multiplyLines(file.contents, 10);
-        let res1 = util.average(contents, 10, false);
-        let res2 = util.average(contents, 10, true);
-        let count = contents.match(/"|,|\r\n|\n/g).length;
-        let density = util.number(count/contents.length);
+        let size = 0.5;
+
+        if (/earthquakes/i.test(file.name)) {
+            size = 10;
+        }
+
+        let data = util.csvDataToMbSize(file.contents, { size });
+        let matches = data.match(/"|,|\r\n|\n/g).length;
+        let density = util.number(matches/data.length);
+
+        let res1 = util.average(data, {count: 10, buffer: false});
+        let res2 = util.average(data, {count: 10, buffer: true});
+
 
         return[{
             file: file,
             rows: res1.rows,
             ms: res1.ms,
-            bytes: Buffer.byteLength(contents),
+            bytes: Buffer.byteLength(data),
             mode: 'String',
             density
         }, {
             file: file,
             rows: res2.rows,
             ms: res2.ms,
-            bytes: Buffer.byteLength(contents),
+            bytes: Buffer.byteLength(data),
             mode: 'Buffer',
             density
         }];
@@ -102,9 +120,9 @@ gulp.task('test-multibyte-chars', () => {
 
     let res = [];
     let data = Buffer.from(`col0,col1,col2\né,£,€`);
-    let stream = util.readstream(util.toCharArray(data), { encoding: null });
+    let stream = util.createReadStream(util.toCharArray(data), { encoding: null });
 
-    return stream.pipe(CSV.stream())
+    return stream.pipe(csv())
         .on('data', chunk => {
             res.push(chunk);
         })
