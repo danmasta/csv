@@ -10,12 +10,12 @@
   ],
   "main": "index.js",
   "files": [
-    "index.js"
+    "index.js",
+    "lib/**/*"
   ],
   "scripts": {
     "test": "mocha tests",
     "coverage": "nyc mocha tests",
-    "build": "gulp build",
     "bench": "gulp bench"
   },
   "repository": {
