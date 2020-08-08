@@ -68,14 +68,14 @@ read.pipe(csv()).pipe(myDestinationStream());
 
 Parse a string and get results in a promise
 ```js
-csv(str).promise().then(res => {
+csv().parse(str).promise().then(res => {
     console.log('Rows:', res);
 });
 ```
 
 Run an iteration function over each row using `each()`
 ```js
-csv().parse(str).flush().each(row => {
+csv().parse(str).each(row => {
     console.log('Row:', row);
 }).then(() => {
     console.log('Parse complete!');
