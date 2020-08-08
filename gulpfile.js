@@ -14,7 +14,7 @@ gulp.task('test-stream', () => {
         let bytes = 0;
         let ms = 0;
 
-        return data.stream.pipe(csv.stream())
+        return data.stream.pipe(csv())
             .on('data', chunk => {
                 rows++;
             })
@@ -122,7 +122,7 @@ gulp.task('test-multibyte-chars', () => {
     let data = Buffer.from(`col0,col1,col2\né,£,€`);
     let stream = util.createReadStream(util.toCharArray(data), { encoding: null });
 
-    return stream.pipe(csv.stream())
+    return stream.pipe(csv())
         .on('data', chunk => {
             res.push(chunk);
         })
