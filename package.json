@@ -1,6 +1,6 @@
 {
   "name": "@danmasta/csv",
-  "version": "0.0.10",
+  "version": "1.0.0",
   "author": "Daniel Smith <dannmasta@gmail.com>",
   "description": "CSV Parser",
   "license": "MIT",
